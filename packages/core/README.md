@@ -2,23 +2,35 @@
 
 Foundation library for the Digital Automation Platform.
 
-## Purpose
+## Architecture
 
-Centralize domain models, configuration schemas, error types, and utilities used across all engines and applications.
+`@dap/core` follows Clean Architecture and Domain-Driven Design. Business rules live in the domain layer; orchestration lives in the application layer; cross-cutting primitives live in shared.
 
-## Planned contents
-
-- **Domain models** — Order, Product, Customer, Automation, InventoryItem, Notification
-- **Configuration** — Environment parsing, feature flags, tenant/merchant context
-- **Contracts** — Interfaces that engines implement and apps consume
-- **Utilities** — Logging, validation, idempotency helpers, date/money handling
-- **Events** — Canonical event shapes for cross-service messaging
+```
+src/
+├── domain/
+│   ├── entities/        # Entity, AggregateRoot
+│   ├── value-objects/   # ValueObject
+│   ├── events/          # DomainEvent, IDomainEventHandler
+│   ├── repositories/    # IRepository
+│   └── services/        # IDomainService
+├── application/
+│   ├── commands/        # ICommand
+│   ├── queries/         # IQuery
+│   └── handlers/        # ICommandHandler, IQueryHandler
+└── shared/
+    ├── errors/          # BaseError, DomainError, ApplicationError
+    ├── types/           # Identifier, Result, utility types
+    └── utils/           # Guard
+```
 
 ## Dependency rules
 
-- `core` has **no** dependencies on other packages in this monorepo
-- All other packages may depend on `core`
+- `domain` does not depend on `application`
+- `application` may depend on `domain` and `shared`
+- `shared` has no upward dependencies
+- Apps and connectors consume `@dap/core`; `@dap/core` never depends on apps
 
 ## Status
 
-Structure only — no library code yet.
+Sprint 2 foundation — base interfaces and abstract classes only. No commerce business logic yet.
