@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createEventName } from '../../domain/events/event-name.js';
 import type { DomainEvent } from '../../domain/events/domain-event.js';
 import type { EventHandler } from '../../domain/events/event-handler.js';
+import type { Unsubscribe } from './event-bus.js';
 import { InMemoryEventBus } from './in-memory-event-bus.js';
 
 const TestEventName = createEventName('platform.test');
@@ -77,19 +78,71 @@ describe('InMemoryEventBus', () => {
   });
 
   it('isolates handler failures so other handlers still run', async () => {
-    const bus = new InMemoryEventBus();
-    const failing = vi.fn(async () => {
+    const onHandlerError = vi.fn();
+    const bus = new InMemoryEventBus({ onHandlerError });
+    const failingHandler = createHandler(TestEventName, async () => {
       throw new Error('handler failed');
     });
     const succeeding = vi.fn();
 
-    bus.subscribe(TestEventName, createHandler(TestEventName, failing));
+    bus.subscribe(TestEventName, failingHandler);
     bus.subscribe(TestEventName, createHandler(TestEventName, succeeding));
 
     await expect(bus.publish(createTestEvent())).resolves.toBeUndefined();
 
-    expect(failing).toHaveBeenCalledOnce();
+    expect(onHandlerError).toHaveBeenCalledOnce();
     expect(succeeding).toHaveBeenCalledOnce();
+  });
+
+  it('invokes the error callback when a handler fails', async () => {
+    const onHandlerError = vi.fn();
+    const bus = new InMemoryEventBus({ onHandlerError });
+    const error = new Error('handler failed');
+    const failingHandler = createHandler(TestEventName, async () => {
+      throw error;
+    });
+
+    const event = createTestEvent();
+    bus.subscribe(TestEventName, failingHandler);
+
+    await bus.publish(event);
+
+    expect(onHandlerError).toHaveBeenCalledOnce();
+    expect(onHandlerError).toHaveBeenCalledWith(error, event, failingHandler);
+  });
+
+  it('executes later handlers after a failure and reports the error', async () => {
+    const onHandlerError = vi.fn();
+    const bus = new InMemoryEventBus({ onHandlerError });
+    const failingHandler = createHandler(TestEventName, async () => {
+      throw new Error('handler failed');
+    });
+    const succeeding = vi.fn();
+
+    bus.subscribe(TestEventName, failingHandler);
+    bus.subscribe(TestEventName, createHandler(TestEventName, succeeding));
+
+    await bus.publish(createTestEvent());
+
+    expect(onHandlerError).toHaveBeenCalledOnce();
+    expect(succeeding).toHaveBeenCalledOnce();
+  });
+
+  it('does not skip the next handler when a handler unsubscribes itself during publish', async () => {
+    const bus = new InMemoryEventBus();
+    const second = vi.fn();
+    let unsubscribeSelf: Unsubscribe = () => undefined;
+
+    const selfRemovingHandler = createHandler(TestEventName, () => {
+      unsubscribeSelf();
+    });
+
+    unsubscribeSelf = bus.subscribe(TestEventName, selfRemovingHandler);
+    bus.subscribe(TestEventName, createHandler(TestEventName, second));
+
+    await bus.publish(createTestEvent());
+
+    expect(second).toHaveBeenCalledOnce();
   });
 
   it('publishes multiple events with publishAll', async () => {

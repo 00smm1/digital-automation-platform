@@ -2,6 +2,16 @@ import type { DomainEvent } from '../../domain/events/domain-event.js';
 import type { EventHandler } from '../../domain/events/event-handler.js';
 import type { EventBus, Unsubscribe } from './event-bus.js';
 
+export type EventHandlerErrorCallback = (
+  error: unknown,
+  event: DomainEvent,
+  handler: EventHandler<DomainEvent>,
+) => void;
+
+export type InMemoryEventBusOptions = {
+  onHandlerError?: EventHandlerErrorCallback;
+};
+
 type RegisteredHandler = {
   readonly handler: EventHandler<DomainEvent>;
 };
@@ -11,6 +21,11 @@ type RegisteredHandler = {
  */
 export class InMemoryEventBus implements EventBus {
   private readonly handlers = new Map<string, RegisteredHandler[]>();
+  private readonly onHandlerError?: EventHandlerErrorCallback;
+
+  constructor(options: InMemoryEventBusOptions = {}) {
+    this.onHandlerError = options.onHandlerError;
+  }
 
   subscribe<TEvent extends DomainEvent>(
     eventName: TEvent['eventName'],
@@ -55,7 +70,7 @@ export class InMemoryEventBus implements EventBus {
   }
 
   async publish<TEvent extends DomainEvent>(event: TEvent): Promise<void> {
-    const eventHandlers = this.handlers.get(event.eventName) ?? [];
+    const eventHandlers = [...(this.handlers.get(event.eventName) ?? [])];
 
     for (const { handler } of eventHandlers) {
       await this.invokeHandler(handler, event);
@@ -74,8 +89,8 @@ export class InMemoryEventBus implements EventBus {
   ): Promise<void> {
     try {
       await handler.handle(event);
-    } catch {
-      // Handler failures are isolated so other handlers can continue.
+    } catch (error: unknown) {
+      this.onHandlerError?.(error, event, handler);
     }
   }
 }
