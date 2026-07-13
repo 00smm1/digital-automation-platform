@@ -4,11 +4,11 @@ Deployable applications that expose the platform to merchants, operators, and ex
 
 ## Applications
 
-| Directory | Purpose |
-|-----------|---------|
-| [wordpress-plugin/](wordpress-plugin/) | WordPress / WooCommerce integration for storefronts |
-| [api-server/](api-server/) | REST or GraphQL API for automation, inventory, and webhooks |
-| [admin-dashboard/](admin-dashboard/) | Web UI for configuration, monitoring, and manual overrides |
+| Directory                              | Purpose                                                     |
+| -------------------------------------- | ----------------------------------------------------------- |
+| [wordpress-plugin/](wordpress-plugin/) | WordPress / WooCommerce integration for storefronts         |
+| [api-server/](api-server/)             | REST or GraphQL API for automation, inventory, and webhooks |
+| [admin-dashboard/](admin-dashboard/)   | Web UI for configuration, monitoring, and manual overrides  |
 
 ## Dependency rules
 

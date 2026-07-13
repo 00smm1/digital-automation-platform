@@ -121,11 +121,11 @@ Format: **Context → Decision → Consequences**
 
 ## Pending decisions
 
-| Topic | Options under consideration | Target |
-|-------|----------------------------|--------|
-| API style | REST vs GraphQL for `api-server` | Phase 1 |
-| Queue backend | Redis vs managed queue service | Phase 1 |
-| WordPress plugin distribution | WP.org vs private zip | Phase 2 |
-| Multi-tenancy model | Single DB + tenant ID vs schema per merchant | Phase 4 |
+| Topic                         | Options under consideration                  | Target  |
+| ----------------------------- | -------------------------------------------- | ------- |
+| API style                     | REST vs GraphQL for `api-server`             | Phase 1 |
+| Queue backend                 | Redis vs managed queue service               | Phase 1 |
+| WordPress plugin distribution | WP.org vs private zip                        | Phase 2 |
+| Multi-tenancy model           | Single DB + tenant ID vs schema per merchant | Phase 4 |
 
 Add new ADRs below as decisions are made. Do not delete superseded entries — mark them **Superseded by ADR-NNN**.
