@@ -8,13 +8,13 @@ Isolate provider-specific APIs behind stable interfaces so engines and apps rema
 
 ## Planned provider categories
 
-| Category | Examples |
-|----------|----------|
-| Commerce | WooCommerce, Shopify, marketplaces |
-| Payments | Stripe, PayPal, regional gateways |
-| Shipping | Carriers, fulfillment APIs |
-| ERP / WMS | Inventory and order sync systems |
-| CRM / Marketing | Customer data and campaign tools |
+| Category        | Examples                           |
+| --------------- | ---------------------------------- |
+| Commerce        | WooCommerce, Shopify, marketplaces |
+| Payments        | Stripe, PayPal, regional gateways  |
+| Shipping        | Carriers, fulfillment APIs         |
+| ERP / WMS       | Inventory and order sync systems   |
+| CRM / Marketing | Customer data and campaign tools   |
 
 ## Planned structure
 

@@ -18,11 +18,11 @@ tests/
 
 ## Scope
 
-| Layer | Location | Examples |
-|-------|----------|----------|
-| Unit | Co-located in each package/app | Engine step execution, template rendering |
-| Integration | `tests/integration/` | API → automation → notification pipeline |
-| E2E | `tests/e2e/` | Plugin event → API → dashboard visibility |
+| Layer       | Location                       | Examples                                  |
+| ----------- | ------------------------------ | ----------------------------------------- |
+| Unit        | Co-located in each package/app | Engine step execution, template rendering |
+| Integration | `tests/integration/`           | API → automation → notification pipeline  |
+| E2E         | `tests/e2e/`                   | Plugin event → API → dashboard visibility |
 
 ## Status
 

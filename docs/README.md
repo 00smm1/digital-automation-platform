@@ -4,20 +4,20 @@ Architecture, decisions, and operational guides for the Digital Automation Platf
 
 ## Documents
 
-| Document | Description |
-|----------|-------------|
-| [PROJECT_VISION.md](PROJECT_VISION.md) | Mission, Lord TV anchor use case, success criteria |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System context, layers, delivery models, event flows |
-| [ROADMAP.md](ROADMAP.md) | Phased delivery plan from foundation through connectors |
-| [DECISIONS.md](DECISIONS.md) | Architecture Decision Records (ADRs) |
+| Document                               | Description                                             |
+| -------------------------------------- | ------------------------------------------------------- |
+| [PROJECT_VISION.md](PROJECT_VISION.md) | Mission, Lord TV anchor use case, success criteria      |
+| [ARCHITECTURE.md](ARCHITECTURE.md)     | System context, layers, delivery models, event flows    |
+| [ROADMAP.md](ROADMAP.md)               | Phased delivery plan from foundation through connectors |
+| [DECISIONS.md](DECISIONS.md)           | Architecture Decision Records (ADRs)                    |
 
 ## Planned contents
 
-| Document | Description |
-|----------|-------------|
-| API reference | Generated from `api-server` when implemented |
-| Runbooks | Incident response, deployment, and rollback procedures |
-| Onboarding | Developer setup and contribution guidelines |
+| Document      | Description                                            |
+| ------------- | ------------------------------------------------------ |
+| API reference | Generated from `api-server` when implemented           |
+| Runbooks      | Incident response, deployment, and rollback procedures |
+| Onboarding    | Developer setup and contribution guidelines            |
 
 ## Conventions
 

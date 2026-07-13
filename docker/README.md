@@ -17,13 +17,13 @@ docker/
 
 ## Planned services
 
-| Service | Source | Notes |
-|---------|--------|-------|
-| api-server | `apps/api-server` | Primary backend |
-| admin-dashboard | `apps/admin-dashboard` | Static or SSR frontend |
-| postgres | — | Primary datastore |
-| redis | — | Cache and job queues |
-| worker | TBD | Background job processor |
+| Service         | Source                 | Notes                    |
+| --------------- | ---------------------- | ------------------------ |
+| api-server      | `apps/api-server`      | Primary backend          |
+| admin-dashboard | `apps/admin-dashboard` | Static or SSR frontend   |
+| postgres        | —                      | Primary datastore        |
+| redis           | —                      | Cache and job queues     |
+| worker          | TBD                    | Background job processor |
 
 ## Usage
 

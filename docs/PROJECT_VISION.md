@@ -26,12 +26,12 @@ A central platform that:
 
 The first production deployment validates the platform end-to-end:
 
-| Component | Role |
-|-----------|------|
-| WooCommerce | Storefront and checkout (via WordPress connector) |
-| AdfPay | Payment capture |
-| IPTV provider API | API-based delivery of subscription credentials |
-| Email | Customer notification and credential delivery |
+| Component         | Role                                              |
+| ----------------- | ------------------------------------------------- |
+| WooCommerce       | Storefront and checkout (via WordPress connector) |
+| AdfPay            | Payment capture                                   |
+| IPTV provider API | API-based delivery of subscription credentials    |
+| Email             | Customer notification and credential delivery     |
 
 Lord TV proves the automation pipeline: order paid → provision via IPTV API → notify customer by email — with the platform core owning orchestration, not WordPress.
 

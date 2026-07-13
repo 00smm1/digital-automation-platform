@@ -5,14 +5,14 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Overview
 
-| Phase | Name | Goal |
-|-------|------|------|
-| 0 | Platform foundation | Vision, architecture, monorepo structure, decisions |
-| 1 | Core + API skeleton | Domain models, event ingress, health and auth |
-| 2 | Lord TV vertical slice | WooCommerce → AdfPay → IPTV API → email |
-| 3 | Inventory delivery | License pool, reservation, allocation |
-| 4 | Admin dashboard | Rule config, run monitoring, manual replay |
-| 5 | Additional connectors | Salla, Zid, Shopify |
+| Phase | Name                   | Goal                                                |
+| ----- | ---------------------- | --------------------------------------------------- |
+| 0     | Platform foundation    | Vision, architecture, monorepo structure, decisions |
+| 1     | Core + API skeleton    | Domain models, event ingress, health and auth       |
+| 2     | Lord TV vertical slice | WooCommerce → AdfPay → IPTV API → email             |
+| 3     | Inventory delivery     | License pool, reservation, allocation               |
+| 4     | Admin dashboard        | Rule config, run monitoring, manual replay          |
+| 5     | Additional connectors  | Salla, Zid, Shopify                                 |
 
 ---
 
@@ -47,12 +47,12 @@ Phased delivery plan for the Digital Automation Platform.
 
 **Focus:** First production use case on WooCommerce.
 
-| Integration | Package / app |
-|-------------|---------------|
-| WooCommerce events | `apps/wordpress-plugin` |
-| Payment verification | `provider-sdk` → AdfPay |
-| IPTV provisioning | `provider-sdk` → IPTV API (API-based delivery) |
-| Customer email | `notification-engine` |
+| Integration          | Package / app                                  |
+| -------------------- | ---------------------------------------------- |
+| WooCommerce events   | `apps/wordpress-plugin`                        |
+| Payment verification | `provider-sdk` → AdfPay                        |
+| IPTV provisioning    | `provider-sdk` → IPTV API (API-based delivery) |
+| Customer email       | `notification-engine`                          |
 
 - Automation rule: paid order → verify payment → provision subscription → send email
 - Idempotency on order ID + retry with backoff
@@ -91,11 +91,11 @@ Phased delivery plan for the Digital Automation Platform.
 
 **Focus:** Prove connector pattern beyond WordPress.
 
-| Connector | Priority | Notes |
-|-----------|----------|-------|
-| Salla | High | Regional Saudi storefront |
-| Zid | High | Regional Saudi storefront |
-| Shopify | Medium | Global SaaS storefront |
+| Connector | Priority | Notes                     |
+| --------- | -------- | ------------------------- |
+| Salla     | High     | Regional Saudi storefront |
+| Zid       | High     | Regional Saudi storefront |
+| Shopify   | Medium   | Global SaaS storefront    |
 
 Each connector implements the same event contract documented in Phase 1. No changes to engines required for basic order-paid flows.
 
@@ -105,12 +105,12 @@ Each connector implements the same event contract documented in Phase 1. No chan
 
 ## Risks and dependencies
 
-| Risk | Mitigation |
-|------|------------|
-| IPTV API instability | Retries, dead-letter queue, manual replay in dashboard |
-| AdfPay webhook delays | Poll payment status as fallback in automation step |
-| WordPress plugin maintenance | Keep plugin thin; versioned API contract |
-| Scope creep on dashboard | Phase 4 limited to ops essentials before builder UI |
+| Risk                         | Mitigation                                             |
+| ---------------------------- | ------------------------------------------------------ |
+| IPTV API instability         | Retries, dead-letter queue, manual replay in dashboard |
+| AdfPay webhook delays        | Poll payment status as fallback in automation step     |
+| WordPress plugin maintenance | Keep plugin thin; versioned API contract               |
+| Scope creep on dashboard     | Phase 4 limited to ops essentials before builder UI    |
 
 ## Document maintenance
 

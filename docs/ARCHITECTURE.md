@@ -55,13 +55,13 @@ flowchart TB
 
 ## Layer model
 
-| Layer | Location | Responsibility |
-|-------|----------|----------------|
-| Connectors | `apps/wordpress-plugin`, future connector apps | Capture storefront events, relay config, authenticate to API |
-| API | `apps/api-server` | Auth, routing, webhooks, admin operations |
-| Engines | `packages/automation-engine`, `inventory-engine`, `notification-engine` | Domain execution |
-| SDK | `packages/provider-sdk` | Vendor-specific API clients and adapters |
-| Core | `packages/core` | Shared models, events, config, errors |
+| Layer      | Location                                                                | Responsibility                                               |
+| ---------- | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Connectors | `apps/wordpress-plugin`, future connector apps                          | Capture storefront events, relay config, authenticate to API |
+| API        | `apps/api-server`                                                       | Auth, routing, webhooks, admin operations                    |
+| Engines    | `packages/automation-engine`, `inventory-engine`, `notification-engine` | Domain execution                                             |
+| SDK        | `packages/provider-sdk`                                                 | Vendor-specific API clients and adapters                     |
+| Core       | `packages/core`                                                         | Shared models, events, config, errors                        |
 
 **Rule:** Connectors and apps never implement fulfillment logic. They translate channel-specific payloads into platform events.
 
@@ -111,13 +111,13 @@ WooCommerce order paid
 
 ## Data ownership
 
-| Data | System of record |
-|------|------------------|
-| Product catalog, cart, checkout | Storefront (WooCommerce, etc.) |
-| Automation definitions, run history | Platform |
-| Pre-loaded codes / license pool | Platform (`inventory-engine`) |
-| Provisioned subscription state | Provider (IPTV API) + platform audit copy |
-| Payment state | Payment provider (AdfPay) + platform event log |
+| Data                                | System of record                               |
+| ----------------------------------- | ---------------------------------------------- |
+| Product catalog, cart, checkout     | Storefront (WooCommerce, etc.)                 |
+| Automation definitions, run history | Platform                                       |
+| Pre-loaded codes / license pool     | Platform (`inventory-engine`)                  |
+| Provisioned subscription state      | Provider (IPTV API) + platform audit copy      |
+| Payment state                       | Payment provider (AdfPay) + platform event log |
 
 ## Security boundaries
 
