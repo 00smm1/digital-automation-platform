@@ -30,7 +30,7 @@ export type AutomationContext = {
   readonly runId: string;
   readonly order: AutomationOrderContext;
   readonly customer: AutomationCustomerContext;
-  readonly payment: AutomationPaymentContext;
-  readonly provider: AutomationProviderContext;
+  readonly payment?: AutomationPaymentContext;
+  readonly provider?: AutomationProviderContext;
   readonly metadata: AutomationContextMetadata;
 };

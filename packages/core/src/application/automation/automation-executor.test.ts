@@ -19,8 +19,6 @@ const createContext = (overrides: Partial<AutomationContext> = {}): AutomationCo
   runId: 'run-1',
   order: { id: 'order-1', reference: 'ORD-001' },
   customer: { id: 'customer-1', email: 'customer@example.com' },
-  payment: { id: 'payment-1', status: 'paid', amount: 100, currency: 'USD' },
-  provider: { id: 'provider-1', type: 'generic' },
   metadata: { source: 'test' },
   ...overrides,
 });
@@ -28,8 +26,10 @@ const createContext = (overrides: Partial<AutomationContext> = {}): AutomationCo
 const createSuccessStep = (
   stepName: string,
   onExecute: (context: AutomationContext) => void = () => undefined,
+  options: { retryable?: boolean } = {},
 ): AutomationStep => ({
   stepName,
+  retryable: options.retryable,
   async execute(context) {
     onExecute(context);
     const timestamp = new Date();
@@ -44,8 +44,13 @@ const createSuccessStep = (
   },
 });
 
-const createFailingStep = (stepName: string, error = 'step failed'): AutomationStep => ({
+const createFailingStep = (
+  stepName: string,
+  error = 'step failed',
+  options: { retryable?: boolean } = {},
+): AutomationStep => ({
   stepName,
+  retryable: options.retryable,
   async execute() {
     const timestamp = new Date();
 
@@ -65,6 +70,7 @@ const createFlakyStep = (stepName: string, failUntilAttempt: number): Automation
 
   return {
     stepName,
+    retryable: true,
     async execute() {
       attempts += 1;
       const timestamp = new Date();
@@ -170,7 +176,22 @@ describe('AutomationExecutor', () => {
     expect(published[0]?.eventName).toBe(AutomationFailedEventName);
   });
 
-  it('retries a failed step according to the retry policy', async () => {
+  it('does not run later steps after a terminal failure', async () => {
+    const eventBus = new InMemoryEventBus();
+    const executor = new AutomationExecutor({ eventBus });
+    const thirdStep = createSuccessStep('step-3');
+    const thirdStepSpy = vi.spyOn(thirdStep, 'execute');
+    const pipeline = new AutomationPipeline({
+      id: 'pipeline-1',
+      steps: [createSuccessStep('step-1'), createFailingStep('step-2'), thirdStep],
+    });
+
+    await executor.execute(pipeline, createContext());
+
+    expect(thirdStepSpy).not.toHaveBeenCalled();
+  });
+
+  it('retries only retryable steps according to the retry policy', async () => {
     const eventBus = new InMemoryEventBus();
     const executor = new AutomationExecutor({ eventBus });
     const pipeline = new AutomationPipeline({
@@ -183,6 +204,39 @@ describe('AutomationExecutor', () => {
 
     expect(result.status).toBe('success');
     expect(result.log.steps[0]?.attempts).toBe(2);
+  });
+
+  it('does not retry a non-retryable failed step even when the pipeline allows retries', async () => {
+    const eventBus = new InMemoryEventBus();
+    const executor = new AutomationExecutor({ eventBus });
+    let executionCount = 0;
+    const failingStep: AutomationStep = {
+      stepName: 'step-1',
+      async execute() {
+        executionCount += 1;
+        const timestamp = new Date();
+
+        return {
+          stepName: 'step-1',
+          status: 'failed',
+          startedAt: timestamp,
+          completedAt: timestamp,
+          attempts: executionCount,
+          error: 'step failed',
+        } satisfies StepResult;
+      },
+    };
+    const pipeline = new AutomationPipeline({
+      id: 'pipeline-1',
+      steps: [failingStep],
+      retryPolicy: createRetryPolicy({ maxAttempts: 3, delayMs: 0 }),
+    });
+
+    const result = await executor.execute(pipeline, createContext());
+
+    expect(result.status).toBe('failed');
+    expect(executionCount).toBe(1);
+    expect(result.log.steps[0]?.attempts).toBe(1);
   });
 
   it('fails validation before executing steps', async () => {
@@ -219,6 +273,51 @@ describe('AutomationExecutor', () => {
     expect(result.log.status).toBe('success');
     expect(result.log.completedAt).toBeInstanceOf(Date);
     expect(result.log.steps.map((step) => step.stepName)).toEqual(['step-1', 'step-2']);
+  });
+
+  it('executes an inventory-style automation without provider context', async () => {
+    const eventBus = new InMemoryEventBus();
+    const executor = new AutomationExecutor({ eventBus });
+    const inventoryStep = createSuccessStep('allocate-inventory', (context) => {
+      expect(context.provider).toBeUndefined();
+    });
+    const pipeline = new AutomationPipeline({
+      id: 'inventory-pipeline',
+      steps: [inventoryStep],
+    });
+
+    const result = await executor.execute(
+      pipeline,
+      createContext({
+        payment: undefined,
+        provider: undefined,
+        metadata: { deliveryModel: 'inventory' },
+      }),
+    );
+
+    expect(result.status).toBe('success');
+  });
+
+  it('executes an automation without payment context', async () => {
+    const eventBus = new InMemoryEventBus();
+    const executor = new AutomationExecutor({ eventBus });
+    const step = createSuccessStep('prepare-fulfillment', (context) => {
+      expect(context.payment).toBeUndefined();
+    });
+    const pipeline = new AutomationPipeline({
+      id: 'fulfillment-pipeline',
+      steps: [step],
+    });
+
+    const result = await executor.execute(
+      pipeline,
+      createContext({
+        payment: undefined,
+        provider: { id: 'provider-1', type: 'generic' },
+      }),
+    );
+
+    expect(result.status).toBe('success');
   });
 });
 

@@ -115,10 +115,6 @@ export class AutomationExecutor {
       Guard.againstEmptyString(context.runId, 'runId');
       Guard.againstEmptyString(context.order.id, 'order.id');
       Guard.againstEmptyString(context.customer.id, 'customer.id');
-      Guard.againstEmptyString(context.payment.id, 'payment.id');
-      Guard.againstEmptyString(context.payment.status, 'payment.status');
-      Guard.againstEmptyString(context.provider.id, 'provider.id');
-      Guard.againstEmptyString(context.provider.type, 'provider.type');
     } catch (error: unknown) {
       throw new AutomationValidationError(toErrorMessage(error), {
         cause: error instanceof Error ? error : undefined,
@@ -131,11 +127,13 @@ export class AutomationExecutor {
     context: AutomationContext,
     retryPolicy: RetryPolicy,
   ): Promise<StepResult> {
+    const effectiveRetryPolicy =
+      step.retryable === true ? retryPolicy : { maxAttempts: 1, delayMs: 0 };
     const startedAt = new Date();
     let attempts = 0;
     let lastError: string | undefined;
 
-    while (attempts < retryPolicy.maxAttempts) {
+    while (attempts < effectiveRetryPolicy.maxAttempts) {
       attempts += 1;
 
       try {
@@ -144,8 +142,8 @@ export class AutomationExecutor {
         if (result.status === 'failed') {
           lastError = result.error ?? `Step "${step.stepName}" failed.`;
 
-          if (attempts < retryPolicy.maxAttempts) {
-            await setTimeout(retryPolicy.delayMs);
+          if (attempts < effectiveRetryPolicy.maxAttempts) {
+            await setTimeout(effectiveRetryPolicy.delayMs);
             continue;
           }
 
@@ -167,8 +165,8 @@ export class AutomationExecutor {
       } catch (error: unknown) {
         lastError = toErrorMessage(error);
 
-        if (attempts < retryPolicy.maxAttempts) {
-          await setTimeout(retryPolicy.delayMs);
+        if (attempts < effectiveRetryPolicy.maxAttempts) {
+          await setTimeout(effectiveRetryPolicy.delayMs);
           continue;
         }
       }

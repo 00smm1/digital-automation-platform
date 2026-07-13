@@ -20,5 +20,6 @@ export type StepResult = {
  */
 export interface AutomationStep {
   readonly stepName: string;
+  readonly retryable?: boolean;
   execute(context: AutomationContext): Promise<StepResult>;
 }
