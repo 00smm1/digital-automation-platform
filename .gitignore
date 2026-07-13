@@ -34,3 +34,7 @@ Thumbs.db
 
 # Vitest
 vitest.config.ts.timestamp-*
+
+# Review artifacts
+*.diff
+*.patch
