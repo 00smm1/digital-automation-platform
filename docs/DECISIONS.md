@@ -123,13 +123,14 @@ Format: **Context → Decision → Consequences**
 
 ## Sprint ADRs (detailed implementation records)
 
-| ADR                                                        | Title                              | Status   |
-| ---------------------------------------------------------- | ---------------------------------- | -------- |
-| [ADR-004](decisions/ADR-004-inventory-reservation.md)      | Inventory reservation              | Accepted |
-| [ADR-005](decisions/ADR-005-provider-sdk.md)               | Provider SDK abstraction           | Accepted |
-| [ADR-006](decisions/ADR-006-order-processing.md)           | Order processing engine            | Accepted |
-| [ADR-007](decisions/ADR-007-workflow-runtime.md)           | Workflow runtime                   | Accepted |
-| [ADR-008](decisions/ADR-008-core-and-engine-boundaries.md) | Core and engine package boundaries | Accepted |
+| ADR                                                        | Title                                    | Status   |
+| ---------------------------------------------------------- | ---------------------------------------- | -------- |
+| [ADR-004](decisions/ADR-004-inventory-reservation.md)      | Inventory reservation                    | Accepted |
+| [ADR-005](decisions/ADR-005-provider-sdk.md)               | Provider SDK abstraction                 | Accepted |
+| [ADR-006](decisions/ADR-006-order-processing.md)           | Order processing engine                  | Accepted |
+| [ADR-007](decisions/ADR-007-workflow-runtime.md)           | Workflow runtime                         | Accepted |
+| [ADR-008](decisions/ADR-008-core-and-engine-boundaries.md) | Core and engine package boundaries       | Accepted |
+| [ADR-009](decisions/ADR-009-automation-definitions.md)     | Automation definitions and rule matching | Accepted |
 
 ### ADR-008 (Sprint 9): Core and engine package boundaries
 
@@ -138,6 +139,14 @@ Format: **Context → Decision → Consequences**
 **Decision:** Keep provider-independent domain and application contracts in `@dap/core`. Engine packages own composition, persistence adapters, and public entry points. Do not duplicate business rules or redefine domain models in engines.
 
 **Consequences:** Incremental migration as features ship; apps → engines → core dependency direction preserved. See [ADR-008 detail](decisions/ADR-008-core-and-engine-boundaries.md).
+
+### ADR-009 (Sprint 10): Automation definitions and rule matching
+
+**Context:** Phase 2 requires normalized event triggers, field conditions, and deterministic workflow selection before HTTP or persistence exists.
+
+**Decision:** Add `AutomationDefinition`, `RuleEvaluator`, and `AutomationMatcher` in `@dap/core`. Matching is separate from workflow execution. Higher numeric priority wins; empty condition groups pass when the trigger matches.
+
+**Consequences:** Matcher output can be wired to order processing and workflow runtime in Sprint 11+. See [ADR-009 detail](decisions/ADR-009-automation-definitions.md).
 
 ---
 

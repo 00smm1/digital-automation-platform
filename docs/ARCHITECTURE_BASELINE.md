@@ -1,8 +1,8 @@
 # Architecture Baseline
 
-Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 8**.  
+Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 10**.  
 **Owner:** Osama AL-Sharif  
-**Status:** Current baseline (Sprint 9)
+**Status:** Current baseline (Sprint 10)
 
 This document describes what exists in the repository today. For target-state design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -12,7 +12,7 @@ This document describes what exists in the repository today. For target-state de
 
 The platform automates digital commerce fulfillment — reserving inventory, invoking providers, running automation pipelines, and processing orders — independently of any single storefront or vendor SDK.
 
-After Sprint 8, all implemented logic resides in `@dap/core` as provider-independent, in-memory TypeScript. Apps and engine packages are structural placeholders awaiting Phase 2+ work.
+After Sprint 10, all implemented logic resides in `@dap/core` as provider-independent, in-memory TypeScript. Apps and engine packages are structural placeholders awaiting further Phase 2+ work.
 
 ---
 
@@ -56,18 +56,19 @@ flowchart TB
 
 All paths relative to `packages/core/src/domain/`.
 
-| Module           | Key types                                                                       | Responsibility              |
-| ---------------- | ------------------------------------------------------------------------------- | --------------------------- |
-| `entities/`      | `Entity`, `AggregateRoot`                                                       | Base entity patterns        |
-| `value-objects/` | `ValueObject`                                                                   | Immutable value object base |
-| `events/`        | `DomainEvent`, `EventName`, `EventHandler`                                      | Event contracts             |
-| `repositories/`  | `IRepository`                                                                   | Repository marker interface |
-| `services/`      | `IDomainService`                                                                | Domain service marker       |
-| `automation/`    | `AutomationPipeline`, `AutomationStep`, `AutomationContext`, `AutomationResult` | Pipeline execution model    |
-| `inventory/`     | `InventoryItem`, `InventoryRepository`, domain events                           | Inventory lifecycle         |
-| `provider/`      | `Provider`, `ProviderRegistry`, `ProviderFactory`, capabilities                 | Provider abstraction        |
-| `order/`         | `Order`, `OrderItem`, `ExecutionPlan`, processing events                        | Order fulfillment model     |
-| `workflow/`      | `WorkflowExecution`, `WorkflowPlan`, metrics, history                           | Workflow runtime model      |
+| Module                   | Key types                                                                       | Responsibility                   |
+| ------------------------ | ------------------------------------------------------------------------------- | -------------------------------- |
+| `entities/`              | `Entity`, `AggregateRoot`                                                       | Base entity patterns             |
+| `value-objects/`         | `ValueObject`                                                                   | Immutable value object base      |
+| `events/`                | `DomainEvent`, `EventName`, `EventHandler`                                      | Event contracts                  |
+| `repositories/`          | `IRepository`                                                                   | Repository marker interface      |
+| `services/`              | `IDomainService`                                                                | Domain service marker            |
+| `automation/`            | `AutomationPipeline`, `AutomationStep`, `AutomationContext`, `AutomationResult` | Pipeline execution model         |
+| `automation-definition/` | `AutomationDefinition`, `RuleEvaluator`, `NormalizedPlatformEvent`              | Event-triggered rule definitions |
+| `inventory/`             | `InventoryItem`, `InventoryRepository`, domain events                           | Inventory lifecycle              |
+| `provider/`              | `Provider`, `ProviderRegistry`, `ProviderFactory`, capabilities                 | Provider abstraction             |
+| `order/`                 | `Order`, `OrderItem`, `ExecutionPlan`, processing events                        | Order fulfillment model          |
+| `workflow/`              | `WorkflowExecution`, `WorkflowPlan`, metrics, history                           | Workflow runtime model           |
 
 ---
 
@@ -80,6 +81,7 @@ All paths relative to `packages/core/src/application/`.
 | `events/`                            | `EventBus`, `InMemoryEventBus`                                                       | Event dispatch                    |
 | `commands/`, `queries/`, `handlers/` | CQRS marker interfaces                                                               | Command/query pattern             |
 | `automation/`                        | `AutomationExecutor`, command handler                                                | Pipeline execution + events       |
+| `automation-definition/`             | `AutomationMatcher`                                                                  | Rule matching orchestration       |
 | `inventory/`                         | `InventoryService`                                                                   | Inventory lifecycle orchestration |
 | `order/`                             | `OrderProcessingService`, `OrderValidator`, `ExecutionPlanBuilder`, `OrderProcessor` | Order fulfillment orchestration   |
 | `workflow/`                          | `WorkflowRuntime`, step executor registry, execution plan adapter                    | Workflow execution orchestration  |

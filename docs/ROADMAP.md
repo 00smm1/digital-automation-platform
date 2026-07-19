@@ -2,21 +2,21 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 9 (architecture baseline)
+**Last updated:** Sprint 10 (automation definitions)
 
 ## Overview
 
-| Phase | Name                               | Status       |
-| ----- | ---------------------------------- | ------------ |
-| 0     | Vision and repository foundation   | **Complete** |
-| 1     | Domain and execution foundation    | **Complete** |
-| 2     | Application orchestration          | Planned      |
-| 3     | Lord TV vertical slice             | Planned      |
-| 4     | Persistence and reliable execution | Planned      |
-| 5     | Operations dashboard               | Planned      |
-| 6     | Inventory fulfillment              | Planned      |
-| 7     | Additional connectors              | Planned      |
-| 8     | Production hardening               | Planned      |
+| Phase | Name                               | Status          |
+| ----- | ---------------------------------- | --------------- |
+| 0     | Vision and repository foundation   | **Complete**    |
+| 1     | Domain and execution foundation    | **Complete**    |
+| 2     | Application orchestration          | **In progress** |
+| 3     | Lord TV vertical slice             | Planned         |
+| 4     | Persistence and reliable execution | Planned         |
+| 5     | Operations dashboard               | Planned         |
+| 6     | Inventory fulfillment              | Planned         |
+| 7     | Additional connectors              | Planned         |
+| 8     | Production hardening               | Planned         |
 
 ---
 
@@ -61,14 +61,21 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** Planned
+**Status:** In progress (Sprint 10 partial)
 
 **Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, and durable run lifecycle — still in-memory where possible before persistence lands.
 
-**Planned work**
+**Delivered (Sprint 10)**
 
-- Automation definitions (triggers, conditions, actions as structured models)
-- Rule matching against incoming commerce events
+- Automation definition domain model (`AutomationDefinition`, trigger, conditions, condition groups)
+- Supported comparison operators with deterministic semantics
+- Pure `RuleEvaluator` for field-path condition evaluation
+- `AutomationMatcher` application service with priority ordering
+- `AutomationDefinitionRepository` contract and in-memory implementation
+- Unit and application-level tests; [ADR-009](decisions/ADR-009-automation-definitions.md)
+
+**Remaining planned work**
+
 - Action execution wiring through existing automation, inventory, provider, and workflow modules
 - Idempotency contracts (keys, deduplication interfaces)
 - Workflow persistence contracts (repository interfaces, run snapshots)
@@ -76,6 +83,8 @@ Phased delivery plan for the Digital Automation Platform.
 - First in-memory end-to-end vertical flow: synthetic event → rule match → order processing → workflow runtime
 
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
+
+**Result:** Not met. Sprint 10 completed definitions and matching only.
 
 ---
 
