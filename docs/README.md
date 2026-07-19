@@ -4,12 +4,15 @@ Architecture, decisions, and operational guides for the Digital Automation Platf
 
 ## Documents
 
-| Document                               | Description                                             |
-| -------------------------------------- | ------------------------------------------------------- |
-| [PROJECT_VISION.md](PROJECT_VISION.md) | Mission, Lord TV anchor use case, success criteria      |
-| [ARCHITECTURE.md](ARCHITECTURE.md)     | System context, layers, delivery models, event flows    |
-| [ROADMAP.md](ROADMAP.md)               | Phased delivery plan from foundation through connectors |
-| [DECISIONS.md](DECISIONS.md)           | Architecture Decision Records (ADRs)                    |
+| Document                                             | Description                                        |
+| ---------------------------------------------------- | -------------------------------------------------- |
+| [PROJECT_VISION.md](PROJECT_VISION.md)               | Mission, Lord TV anchor use case, success criteria |
+| [ARCHITECTURE.md](ARCHITECTURE.md)                   | Target system design, layers, delivery models      |
+| [ARCHITECTURE_BASELINE.md](ARCHITECTURE_BASELINE.md) | Architecture as implemented after Sprint 8         |
+| [PACKAGE_BOUNDARIES.md](PACKAGE_BOUNDARIES.md)       | Package ownership and dependency rules             |
+| [ROADMAP.md](ROADMAP.md)                             | Phased delivery plan through production v1         |
+| [DECISIONS.md](DECISIONS.md)                         | Architecture decision index                        |
+| [decisions/](decisions/)                             | Detailed sprint ADRs (ADR-004 onward)              |
 
 ## Planned contents
 
@@ -27,4 +30,4 @@ Architecture, decisions, and operational guides for the Digital Automation Platf
 
 ## Status
 
-Foundation documents (vision, architecture, roadmap, decisions) are in place. API reference, runbooks, and onboarding guides will follow as components are implemented.
+Foundation and baseline documents are in place through Sprint 9. API reference, runbooks, and onboarding guides will follow as components are implemented.

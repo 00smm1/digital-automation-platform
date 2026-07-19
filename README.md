@@ -1,41 +1,124 @@
 # Digital Automation Platform
 
-A scalable monorepo for digital commerce automation — orchestrating workflows, inventory, notifications, and third-party integrations across WordPress storefronts and internal tooling.
+A TypeScript monorepo for digital commerce automation — orchestrating orders, inventory, providers, workflows, and notifications across storefront connectors and internal tooling.
 
-## Repository layout
+**Owner:** Osama AL-Sharif
+
+## Current project status
+
+The repository has completed **Phase 0** (vision and structure) and **Phase 1** (domain and execution foundation through Sprint 8). All substantive business logic currently lives in `@dap/core` as in-memory, provider-independent domain and application code.
+
+What exists today:
+
+- Clean Architecture foundations (entities, aggregates, value objects, CQRS contracts)
+- In-memory event bus
+- Automation pipeline execution
+- Inventory reservation lifecycle
+- Provider SDK contracts and registry
+- Order processing and execution plans
+- Workflow runtime with retry, timeout, cancellation, metrics, and history
+
+What does **not** exist yet:
+
+- HTTP API server, WordPress connector runtime, or admin dashboard application code
+- Database persistence, queues, authentication, or production deployment
+- Vendor adapters (AdfPay, IPTV, email SMTP), storefront integrations, or engine package implementations beyond stubs
+
+## Completed capabilities (Sprints 0–8)
+
+| Sprint | Capability                                                                                |
+| ------ | ----------------------------------------------------------------------------------------- |
+| 0      | Monorepo structure, vision, architecture docs, decision log                               |
+| 1      | Workspace bootstrap — pnpm, Turbo, TypeScript, ESLint, Prettier, Vitest, Husky            |
+| 2      | `@dap/core` Clean Architecture foundation — entities, errors, Result, Guard, CQRS markers |
+| 3      | In-memory event bus with handler isolation                                                |
+| 4      | Automation domain — pipelines, steps, executor, retry policy, execution log               |
+| 5      | Inventory domain — items, reservation, in-memory repository, inventory service            |
+| 6      | Provider SDK — Provider, Factory, Registry, capabilities, request/response contracts      |
+| 7      | Order processing — Order aggregate, validation, execution plans, orchestration service    |
+| 8      | Workflow runtime — sequential execution, policies, metrics, history, lifecycle events     |
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for phase planning and [docs/ARCHITECTURE_BASELINE.md](docs/ARCHITECTURE_BASELINE.md) for the current architecture snapshot.
+
+## Repository architecture
 
 ```
 digital-automation-platform/
-├── apps/                    # Deployable applications
-│   ├── wordpress-plugin/    # WooCommerce / WordPress integration
-│   ├── api-server/          # Public and internal HTTP API
-│   └── admin-dashboard/     # Operator and merchant UI
-├── packages/                # Shared libraries and domain engines
-│   ├── core/                # Domain models, config, and utilities
-│   ├── automation-engine/   # Workflow orchestration and rules
-│   ├── provider-sdk/        # External service adapters
-│   ├── notification-engine/ # Email, SMS, and webhook delivery
-│   └── inventory-engine/    # Stock sync and reservation logic
-├── docs/                    # Architecture, ADRs, and runbooks
-├── tests/                   # Cross-package integration and E2E tests
-└── docker/                  # Local development and deployment images
+├── apps/                    # Deployable applications (stubs today)
+│   ├── wordpress-plugin/    # WooCommerce / WordPress connector
+│   ├── api-server/          # HTTP API entry point
+│   └── admin-dashboard/     # Operator UI
+├── packages/
+│   ├── core/                # Domain + application contracts (implemented)
+│   ├── automation-engine/   # Future orchestration composition layer
+│   ├── inventory-engine/    # Future inventory persistence/composition layer
+│   ├── provider-sdk/        # Future vendor adapter implementations
+│   └── notification-engine/ # Future notification delivery layer
+├── docs/                    # Architecture, ADRs, roadmap
+├── tests/                   # Cross-package integration tests (placeholder)
+└── docker/                  # Local stack definitions (placeholder)
+```
+
+**Dependency direction:** `apps` → engine packages → `@dap/core`. Domain code never depends on apps or infrastructure. See [docs/PACKAGE_BOUNDARIES.md](docs/PACKAGE_BOUNDARIES.md).
+
+## Package overview
+
+| Package                    | Status          | Role                                                                                |
+| -------------------------- | --------------- | ----------------------------------------------------------------------------------- |
+| `@dap/core`                | **Implemented** | Provider-independent domain models, application services, in-memory implementations |
+| `@dap/automation-engine`   | Stub            | Future automation composition and public API                                        |
+| `@dap/inventory-engine`    | Stub            | Future inventory persistence and composition                                        |
+| `@dap/provider-sdk`        | Stub            | Future vendor HTTP/SDK adapters                                                     |
+| `@dap/notification-engine` | Stub            | Future email/SMS/webhook delivery                                                   |
+
+## Development commands
+
+Requires **Node.js ≥ 20** and **pnpm 10**.
+
+```bash
+pnpm install          # Install workspace dependencies
+pnpm build            # Build all packages (Turbo)
+pnpm test             # Run all unit tests (Vitest)
+pnpm lint             # ESLint across workspaces
+pnpm format           # Prettier write
+pnpm format:check     # Prettier check without writing
+```
+
+Run commands for a single package:
+
+```bash
+pnpm --filter @dap/core test
+pnpm --filter @dap/core build
 ```
 
 ## Design principles
 
 - **Monorepo, clear boundaries** — Apps consume packages; packages never depend on apps.
-- **Engine separation** — Automation, inventory, and notifications are independent engines with well-defined interfaces.
-- **Provider abstraction** — All external integrations go through `provider-sdk`.
-- **WordPress as a channel** — The plugin is a thin client; business logic lives in shared packages and the API.
+- **Core owns contracts** — Business rules and domain models live in `@dap/core`; engine packages compose them later.
+- **Provider abstraction** — Vendor details stay in adapters; core uses capability-oriented provider contracts.
+- **WordPress as a channel** — The plugin is a thin connector; fulfillment logic stays in core and future engine layers.
+- **In-memory first** — Current implementations are testable without database, queue, or network dependencies.
 
-## Getting started
+## Current limitations
 
-> Application code and tooling are not yet implemented. See each directory's README for scope and planned responsibilities.
+- All state is in-memory; process restarts lose inventory reservations and workflow runs.
+- No idempotency keys, durable workflow persistence, or dead-letter queues.
+- Engine packages and apps are workspace stubs with no runtime behavior.
+- No authentication, secrets management, observability, or deployment automation.
+- Integration tests against real WooCommerce, AdfPay, or IPTV APIs are not implemented.
 
-1. Review [docs/](docs/) for architecture and conventions.
-2. Explore [apps/](apps/) and [packages/](packages/) README files for component boundaries.
-3. Use [docker/](docker/) (when available) for local stack orchestration.
+## Next milestone
 
-## Status
+**Phase 2 — Application orchestration** (Sprint 10+): automation definitions, rule matching, action execution, idempotency contracts, workflow persistence contracts, and the first in-memory end-to-end vertical flow. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
-Initial project structure only — no application code at this stage.
+## Documentation
+
+| Document                                                       | Description                            |
+| -------------------------------------------------------------- | -------------------------------------- |
+| [docs/PROJECT_VISION.md](docs/PROJECT_VISION.md)               | Product vision and goals               |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                   | Target system design                   |
+| [docs/ARCHITECTURE_BASELINE.md](docs/ARCHITECTURE_BASELINE.md) | Architecture as built after Sprint 8   |
+| [docs/PACKAGE_BOUNDARIES.md](docs/PACKAGE_BOUNDARIES.md)       | Package ownership and dependency rules |
+| [docs/ROADMAP.md](docs/ROADMAP.md)                             | Phased delivery plan                   |
+| [docs/DECISIONS.md](docs/DECISIONS.md)                         | Architecture decision index            |
+| [docs/decisions/](docs/decisions/)                             | Detailed sprint ADRs                   |

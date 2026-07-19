@@ -1,95 +1,171 @@
 # Roadmap
 
 Phased delivery plan for the Digital Automation Platform.  
-**Owner:** Osama AL-Sharif
+**Owner:** Osama AL-Sharif  
+**Last updated:** Sprint 9 (architecture baseline)
 
 ## Overview
 
-| Phase | Name                   | Goal                                                |
-| ----- | ---------------------- | --------------------------------------------------- |
-| 0     | Platform foundation    | Vision, architecture, monorepo structure, decisions |
-| 1     | Core + API skeleton    | Domain models, event ingress, health and auth       |
-| 2     | Lord TV vertical slice | WooCommerce → AdfPay → IPTV API → email             |
-| 3     | Inventory delivery     | License pool, reservation, allocation               |
-| 4     | Admin dashboard        | Rule config, run monitoring, manual replay          |
-| 5     | Additional connectors  | Salla, Zid, Shopify                                 |
+| Phase | Name                               | Status       |
+| ----- | ---------------------------------- | ------------ |
+| 0     | Vision and repository foundation   | **Complete** |
+| 1     | Domain and execution foundation    | **Complete** |
+| 2     | Application orchestration          | Planned      |
+| 3     | Lord TV vertical slice             | Planned      |
+| 4     | Persistence and reliable execution | Planned      |
+| 5     | Operations dashboard               | Planned      |
+| 6     | Inventory fulfillment              | Planned      |
+| 7     | Additional connectors              | Planned      |
+| 8     | Production hardening               | Planned      |
 
 ---
 
-## Sprint 0 — Platform foundation ✓ (current)
+## Phase 0 — Vision and repository foundation
 
-**Deliverables**
+**Status:** Complete
 
-- [x] Monorepo structure (`apps/`, `packages/`, `docs/`, `tests/`, `docker/`)
-- [x] Project vision, architecture, roadmap, and decision log
-- [ ] Development environment (Docker Compose, linting, CI stub)
-- [ ] Connector contract specification (OpenAPI event schema draft)
+**Delivered (Sprint 0)**
 
-**Exit criteria:** Team aligned on architecture; Lord TV flow documented; no application code required yet.
+- Monorepo structure (`apps/`, `packages/`, `docs/`, `tests/`, `docker/`)
+- Project vision, target architecture, decision log, and roadmap
+- README documentation per top-level directory
 
----
+**Exit criteria:** Team aligned on architecture; Lord TV reference flow documented; repository structure in place.
 
-## Phase 1 — Core + API skeleton
-
-**Focus:** Runnable platform with no storefront attached.
-
-- `packages/core` — Order, Product, AutomationRun, DeliveryRequest models
-- `apps/api-server` — Event ingestion (`POST /events/*`), merchant auth, OpenAPI spec
-- `packages/automation-engine` — Rule storage and no-op executor stub
-- PostgreSQL schema migrations
-- Unit tests for core models and API validation
-
-**Exit criteria:** Send a synthetic `order.paid` event via curl; receive run ID and audit entry.
+**Result:** Met. Foundation docs and directory layout exist.
 
 ---
 
-## Phase 2 — Lord TV vertical slice
+## Phase 1 — Domain and execution foundation
 
-**Focus:** First production use case on WooCommerce.
+**Status:** Complete (Sprints 1–8)
 
-| Integration          | Package / app                                  |
-| -------------------- | ---------------------------------------------- |
-| WooCommerce events   | `apps/wordpress-plugin`                        |
-| Payment verification | `provider-sdk` → AdfPay                        |
-| IPTV provisioning    | `provider-sdk` → IPTV API (API-based delivery) |
-| Customer email       | `notification-engine`                          |
+**Delivered**
+
+| Sprint | Deliverable                                                               |
+| ------ | ------------------------------------------------------------------------- |
+| 1      | pnpm workspace, Turbo, TypeScript, ESLint, Prettier, Vitest, Husky        |
+| 2      | Clean Architecture foundation in `@dap/core`                              |
+| 3      | In-memory event bus                                                       |
+| 4      | Automation pipeline domain and executor                                   |
+| 5      | Inventory aggregate, reservation, in-memory repository, inventory service |
+| 6      | Provider contracts, factory, registry, capabilities                       |
+| 7      | Order processing — validation, execution plans, orchestration             |
+| 8      | Workflow runtime — policies, metrics, history, lifecycle events           |
+
+**Exit criteria:** Core domain modules compile, unit tests pass, and order-to-workflow execution can be exercised in memory without HTTP, database, or vendor SDKs.
+
+**Result:** Met. `@dap/core` contains all implemented business logic; apps and engine packages remain stubs.
+
+---
+
+## Phase 2 — Application orchestration
+
+**Status:** Planned
+
+**Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, and durable run lifecycle — still in-memory where possible before persistence lands.
+
+**Planned work**
+
+- Automation definitions (triggers, conditions, actions as structured models)
+- Rule matching against incoming commerce events
+- Action execution wiring through existing automation, inventory, provider, and workflow modules
+- Idempotency contracts (keys, deduplication interfaces)
+- Workflow persistence contracts (repository interfaces, run snapshots)
+- Run lifecycle and failure handling (resume, abandon, compensating action hooks)
+- First in-memory end-to-end vertical flow: synthetic event → rule match → order processing → workflow runtime
+
+**Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
+
+---
+
+## Phase 3 — Lord TV vertical slice
+
+**Status:** Planned
+
+**Focus:** First real integration stack on staging using the Lord TV reference scenario.
+
+**Planned work**
+
+| Component                   | Location                       |
+| --------------------------- | ------------------------------ |
+| API server event ingestion  | `apps/api-server`              |
+| WooCommerce connector       | `apps/wordpress-plugin`        |
+| AdfPay verification adapter | `packages/provider-sdk`        |
+| IPTV provider adapter       | `packages/provider-sdk`        |
+| Email notification adapter  | `packages/notification-engine` |
+| Staging end-to-end test     | `tests/`                       |
 
 - Automation rule: paid order → verify payment → provision subscription → send email
-- Idempotency on order ID + retry with backoff
-- Order note or meta update via connector callback (optional)
+- Idempotency on order ID with retry and backoff
+- Optional order note update via connector callback
 
-**Exit criteria:** Real WooCommerce test order completes full pipeline in staging.
-
----
-
-## Phase 3 — Inventory-based delivery
-
-**Focus:** Second delivery model for products without live APIs.
-
-- `inventory-engine` — Import codes, reserve, commit, release
-- Automation action: `allocate_from_inventory`
-- Low-stock alerts via `notification-engine`
-- Reconciliation report for depleted pools
-
-**Exit criteria:** Product fulfilled from pre-loaded pool; API delivery and inventory delivery coexist in same automation engine.
+**Exit criteria:** A real WooCommerce test order in staging completes the full Lord TV pipeline with audit trail visible through API or logs.
 
 ---
 
-## Phase 4 — Admin dashboard
+## Phase 4 — Persistence and reliable execution
 
-**Focus:** Operator visibility without WordPress admin.
+**Status:** Planned
 
-- `apps/admin-dashboard` — Auth, automation list, run history, failed run replay
-- Connection management for providers (AdfPay, IPTV, email)
-- Read-only Lord TV metrics (orders processed, failure rate)
+**Focus:** Durable state and reliable asynchronous execution.
 
-**Exit criteria:** Operator diagnoses and replays a failed run from the dashboard.
+**Planned work**
+
+- PostgreSQL for platform state
+- Redis or queue abstraction for work distribution
+- Schema migrations
+- Durable workflow runs and execution history
+- Distributed locks for reservation and run concurrency
+- Retry policies backed by queue redelivery
+- Dead-letter handling for exhausted failures
+- Audit history persisted across restarts
+
+**Exit criteria:** Process restart does not lose in-flight runs; failed steps land in dead-letter queue; inventory reservations survive restart until released or committed.
 
 ---
 
-## Phase 5 — Additional connectors
+## Phase 5 — Operations dashboard
 
-**Focus:** Prove connector pattern beyond WordPress.
+**Status:** Planned
+
+**Focus:** Operator visibility and manual intervention without WordPress admin.
+
+**Planned work**
+
+- Operator authentication and authorization
+- Run monitoring — active, completed, and failed executions
+- Failed run replay from dashboard
+- Provider connection management (AdfPay, IPTV, email)
+- Basic metrics — throughput, failure rate, latency
+
+**Exit criteria:** Operator diagnoses a failed Lord TV run and triggers replay from the dashboard without shell access.
+
+---
+
+## Phase 6 — Inventory fulfillment
+
+**Status:** Planned
+
+**Focus:** Production-grade inventory pools beyond in-memory reservation.
+
+**Planned work**
+
+- Persistent inventory pools in PostgreSQL
+- Bulk import of codes, licenses, and accounts
+- Reserve, commit, and release with transactional guarantees
+- Low-stock alerts via notification engine
+- Reconciliation reports for depleted and mismatched pools
+
+**Exit criteria:** Product fulfilled from a persistent pool; API-based and inventory-based delivery coexist; low-stock alert fires when pool crosses threshold.
+
+---
+
+## Phase 7 — Additional connectors
+
+**Status:** Planned
+
+**Focus:** Prove the connector pattern beyond WordPress.
 
 | Connector | Priority | Notes                     |
 | --------- | -------- | ------------------------- |
@@ -97,21 +173,42 @@ Phased delivery plan for the Digital Automation Platform.
 | Zid       | High     | Regional Saudi storefront |
 | Shopify   | Medium   | Global SaaS storefront    |
 
-Each connector implements the same event contract documented in Phase 1. No changes to engines required for basic order-paid flows.
+Each connector maps channel events to platform canonical models. No engine rewrites required for basic order-paid flows.
 
-**Exit criteria:** One non-WooCommerce connector passes integration test suite against `api-server`.
+**Exit criteria:** One non-WooCommerce connector passes integration tests against `api-server` in staging.
+
+---
+
+## Phase 8 — Production hardening
+
+**Status:** Planned
+
+**Focus:** Operate safely at production scale.
+
+**Planned work**
+
+- Observability — structured logging, metrics, tracing
+- Security review and dependency audit
+- Rate limits at API ingress
+- Secrets management (no plain-text credentials in connectors)
+- Backup and disaster recovery procedures
+- Load testing and capacity baseline
+- Deployment documentation and runbooks
+
+**Exit criteria:** Production deployment checklist complete; load test demonstrates acceptable latency under expected peak; recovery drill documented and executed once in staging.
 
 ---
 
 ## Risks and dependencies
 
-| Risk                         | Mitigation                                             |
-| ---------------------------- | ------------------------------------------------------ |
-| IPTV API instability         | Retries, dead-letter queue, manual replay in dashboard |
-| AdfPay webhook delays        | Poll payment status as fallback in automation step     |
-| WordPress plugin maintenance | Keep plugin thin; versioned API contract               |
-| Scope creep on dashboard     | Phase 4 limited to ops essentials before builder UI    |
+| Risk                         | Mitigation                                                      |
+| ---------------------------- | --------------------------------------------------------------- |
+| Scope creep in Phase 2       | Keep orchestration in-memory; defer persistence to Phase 4      |
+| IPTV API instability         | Retries, dead-letter queue, manual replay (Phase 4–5)           |
+| AdfPay webhook delays        | Poll payment status as fallback automation step                 |
+| WordPress plugin maintenance | Keep plugin thin; versioned API contract                        |
+| Engine/core duplication      | ADR-008 — core owns contracts; engines compose, do not redefine |
 
 ## Document maintenance
 
-Update this roadmap at the end of each phase. Record scope changes in [DECISIONS.md](DECISIONS.md).
+Update this roadmap at the end of each phase. Record scope changes in [DECISIONS.md](DECISIONS.md) and detailed sprint ADRs in [docs/decisions/](decisions/).
