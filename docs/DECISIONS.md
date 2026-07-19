@@ -117,6 +117,28 @@ Format: **Context → Decision → Consequences**
 - Lord TV credential email is one template + one engine call
 - Future channels (SMS, Slack) extend the engine, not individual automations
 
+> **Note:** Detailed sprint ADRs (implementation records) live in [docs/decisions/](decisions/) and use a separate sequence starting at ADR-004. Sprint ADR-008 covers [core and engine package boundaries](decisions/ADR-008-core-and-engine-boundaries.md).
+
+---
+
+## Sprint ADRs (detailed implementation records)
+
+| ADR                                                        | Title                              | Status   |
+| ---------------------------------------------------------- | ---------------------------------- | -------- |
+| [ADR-004](decisions/ADR-004-inventory-reservation.md)      | Inventory reservation              | Accepted |
+| [ADR-005](decisions/ADR-005-provider-sdk.md)               | Provider SDK abstraction           | Accepted |
+| [ADR-006](decisions/ADR-006-order-processing.md)           | Order processing engine            | Accepted |
+| [ADR-007](decisions/ADR-007-workflow-runtime.md)           | Workflow runtime                   | Accepted |
+| [ADR-008](decisions/ADR-008-core-and-engine-boundaries.md) | Core and engine package boundaries | Accepted |
+
+### ADR-008 (Sprint 9): Core and engine package boundaries
+
+**Context:** All business logic currently lives in `@dap/core`; engine packages are stubs. Phase 2+ requires clear ownership before adding infrastructure.
+
+**Decision:** Keep provider-independent domain and application contracts in `@dap/core`. Engine packages own composition, persistence adapters, and public entry points. Do not duplicate business rules or redefine domain models in engines.
+
+**Consequences:** Incremental migration as features ship; apps → engines → core dependency direction preserved. See [ADR-008 detail](decisions/ADR-008-core-and-engine-boundaries.md).
+
 ---
 
 ## Pending decisions
