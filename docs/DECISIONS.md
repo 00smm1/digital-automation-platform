@@ -123,15 +123,16 @@ Format: **Context → Decision → Consequences**
 
 ## Sprint ADRs (detailed implementation records)
 
-| ADR                                                        | Title                                    | Status   |
-| ---------------------------------------------------------- | ---------------------------------------- | -------- |
-| [ADR-004](decisions/ADR-004-inventory-reservation.md)      | Inventory reservation                    | Accepted |
-| [ADR-005](decisions/ADR-005-provider-sdk.md)               | Provider SDK abstraction                 | Accepted |
-| [ADR-006](decisions/ADR-006-order-processing.md)           | Order processing engine                  | Accepted |
-| [ADR-007](decisions/ADR-007-workflow-runtime.md)           | Workflow runtime                         | Accepted |
-| [ADR-008](decisions/ADR-008-core-and-engine-boundaries.md) | Core and engine package boundaries       | Accepted |
-| [ADR-009](decisions/ADR-009-automation-definitions.md)     | Automation definitions and rule matching | Accepted |
-| [ADR-010](decisions/ADR-010-event-orchestration-policy.md) | Event-to-workflow orchestration policy   | Accepted |
+| ADR                                                         | Title                                    | Status   |
+| ----------------------------------------------------------- | ---------------------------------------- | -------- |
+| [ADR-004](decisions/ADR-004-inventory-reservation.md)       | Inventory reservation                    | Accepted |
+| [ADR-005](decisions/ADR-005-provider-sdk.md)                | Provider SDK abstraction                 | Accepted |
+| [ADR-006](decisions/ADR-006-order-processing.md)            | Order processing engine                  | Accepted |
+| [ADR-007](decisions/ADR-007-workflow-runtime.md)            | Workflow runtime                         | Accepted |
+| [ADR-008](decisions/ADR-008-core-and-engine-boundaries.md)  | Core and engine package boundaries       | Accepted |
+| [ADR-009](decisions/ADR-009-automation-definitions.md)      | Automation definitions and rule matching | Accepted |
+| [ADR-010](decisions/ADR-010-event-orchestration-policy.md)  | Event-to-workflow orchestration policy   | Accepted |
+| [ADR-011](decisions/ADR-011-workflow-execution-pipeline.md) | Workflow execution pipeline policy       | Accepted |
 
 ### ADR-008 (Sprint 9): Core and engine package boundaries
 
@@ -156,6 +157,14 @@ Format: **Context → Decision → Consequences**
 **Decision:** Add `PlatformEventOrchestrator`, `WorkflowExecutionPort`, execution request/outcome models, and sequential continue-on-failure execution. Use an explicit execution id generator; defer idempotency storage to a pre-loop insertion point.
 
 **Consequences:** In-memory end-to-end orchestration is testable; production wiring adds a port adapter over `WorkflowRuntime`. See [ADR-010 detail](decisions/ADR-010-event-orchestration-policy.md).
+
+### ADR-011 (Sprint 12): Workflow execution pipeline policy
+
+**Context:** Orchestration references workflows by string id but cannot describe or execute ordered step pipelines provider-independently.
+
+**Decision:** Add `WorkflowDefinition`, pipeline step/result models, `PipelineRunner`, and in-memory step executors with sequential fatal-stop semantics. Keep separate from `WorkflowRuntime` lifecycle concerns.
+
+**Consequences:** Workflows are testable as declarative pipelines; future sprints can map definitions to runtime plans or port adapters. See [ADR-011 detail](decisions/ADR-011-workflow-execution-pipeline.md).
 
 ---
 

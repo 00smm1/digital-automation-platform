@@ -2,7 +2,7 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 11 (event orchestration)
+**Last updated:** Sprint 12 (workflow execution pipeline)
 
 ## Overview
 
@@ -61,7 +61,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** In progress (Sprint 11 partial)
+**Status:** In progress (Sprint 12 partial)
 
 **Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, orchestration, and durable run lifecycle — still in-memory where possible before persistence lands.
 
@@ -83,10 +83,20 @@ Phased delivery plan for the Digital Automation Platform.
 - Explicit execution identity via injected id generator; idempotency insertion point documented
 - Application-level end-to-end tests; [ADR-010](decisions/ADR-010-event-orchestration-policy.md)
 
+**Delivered (Sprint 12)**
+
+- `WorkflowDefinition` and `PipelineStepDefinition` declarative models
+- `PipelineStepExecutionContext`, `PipelineStepExecutionResult`, `PipelineExecutionResult`
+- `PipelineStep` abstraction and `PipelineStepExecutorRegistry`
+- `PipelineRunner` with sequential fatal-stop failure propagation
+- `InMemoryPipelineStepExecutorRegistry` for tests and local composition
+- Comprehensive unit and application tests; [ADR-011](decisions/ADR-011-workflow-execution-pipeline.md)
+
 **Remaining planned work**
 
-- Production `WorkflowExecutionPort` adapter over `WorkflowRuntime`
-- Order processing integration (event → match → order plan → workflow runtime)
+- Production `WorkflowExecutionPort` adapter (`PipelineRunner` and/or `WorkflowRuntime`)
+- Workflow definition resolver (maps `workflowReference` → `WorkflowDefinition`)
+- Order processing integration (event → match → order plan → workflow pipeline)
 - Idempotency contracts (keys, deduplication interfaces) and storage
 - Workflow persistence contracts (repository interfaces, run snapshots)
 - Run lifecycle and failure handling (resume, abandon, compensating action hooks)
@@ -94,7 +104,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
 
-**Result:** Not met. Sprint 11 completes event-to-workflow orchestration in memory; order fulfillment integration and idempotency contracts remain.
+**Result:** Not met. Sprint 12 completes declarative workflow pipelines in memory; orchestration port wiring and order fulfillment integration remain.
 
 ---
 
