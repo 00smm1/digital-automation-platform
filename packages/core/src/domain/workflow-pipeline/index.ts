@@ -23,6 +23,8 @@ export {
   PIPELINE_EXECUTION_STATUSES,
   createPipelineExecutionResult,
 } from './pipeline-execution-result.js';
+export type { WorkflowDefinitionRepository } from './workflow-definition-repository.js';
+export { InMemoryWorkflowDefinitionRepository } from './in-memory-workflow-definition-repository.js';
 export type { PipelineStep } from './pipeline-step.js';
 export {
   InvalidWorkflowDefinitionError,

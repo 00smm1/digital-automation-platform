@@ -2,7 +2,7 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 12 (workflow execution pipeline)
+**Last updated:** Sprint 13 (first vertical slice)
 
 ## Overview
 
@@ -61,7 +61,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** In progress (Sprint 12 partial)
+**Status:** In progress (Sprint 13 partial — vertical slice proven in memory)
 
 **Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, orchestration, and durable run lifecycle — still in-memory where possible before persistence lands.
 
@@ -92,19 +92,27 @@ Phased delivery plan for the Digital Automation Platform.
 - `InMemoryPipelineStepExecutorRegistry` for tests and local composition
 - Comprehensive unit and application tests; [ADR-011](decisions/ADR-011-workflow-execution-pipeline.md)
 
+**Delivered (Sprint 13)**
+
+- `DigitalFulfillmentService` — first end-to-end digital fulfillment use case
+- `PipelineWorkflowExecutionPort` connecting orchestration to pipeline runner
+- `WorkflowDefinitionRepository` and fulfillment pipeline step executors
+- Application ports: inventory reservation, digital product provisioning, customer notification
+- Fake/in-memory adapters and `createDigitalFulfillmentStack()` composition root
+- Notification and provisioning domain contracts in `@dap/core`
+- 12+ vertical slice and failure-path tests; [ADR-012](decisions/ADR-012-first-digital-fulfillment-vertical-slice.md)
+
 **Remaining planned work**
 
-- Production `WorkflowExecutionPort` adapter (`PipelineRunner` and/or `WorkflowRuntime`)
-- Workflow definition resolver (maps `workflowReference` → `WorkflowDefinition`)
-- Order processing integration (event → match → order plan → workflow pipeline)
 - Idempotency contracts (keys, deduplication interfaces) and storage
 - Workflow persistence contracts (repository interfaces, run snapshots)
 - Run lifecycle and failure handling (resume, abandon, compensating action hooks)
-- Full in-memory vertical flow: synthetic event → matched rule → fulfilled order path
+- Unify `OrderProcessingService` path with fulfillment pipeline where appropriate
+- Reservation compensation on downstream failure
 
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
 
-**Result:** Not met. Sprint 12 completes declarative workflow pipelines in memory; orchestration port wiring and order fulfillment integration remain.
+**Result:** Partially met. Sprint 13 proves in-memory event → match → pipeline → fulfillment with fake adapters. Idempotency and run lifecycle contracts remain outstanding.
 
 ---
 

@@ -1,5 +1,6 @@
 export * from './automation/index.js';
 export * from './automation-definition/index.js';
+export * from './fulfillment/index.js';
 export * from './orchestration/index.js';
 export * from './inventory/index.js';
 export * from './order/index.js';

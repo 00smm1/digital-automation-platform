@@ -123,16 +123,17 @@ Format: **Context → Decision → Consequences**
 
 ## Sprint ADRs (detailed implementation records)
 
-| ADR                                                         | Title                                    | Status   |
-| ----------------------------------------------------------- | ---------------------------------------- | -------- |
-| [ADR-004](decisions/ADR-004-inventory-reservation.md)       | Inventory reservation                    | Accepted |
-| [ADR-005](decisions/ADR-005-provider-sdk.md)                | Provider SDK abstraction                 | Accepted |
-| [ADR-006](decisions/ADR-006-order-processing.md)            | Order processing engine                  | Accepted |
-| [ADR-007](decisions/ADR-007-workflow-runtime.md)            | Workflow runtime                         | Accepted |
-| [ADR-008](decisions/ADR-008-core-and-engine-boundaries.md)  | Core and engine package boundaries       | Accepted |
-| [ADR-009](decisions/ADR-009-automation-definitions.md)      | Automation definitions and rule matching | Accepted |
-| [ADR-010](decisions/ADR-010-event-orchestration-policy.md)  | Event-to-workflow orchestration policy   | Accepted |
-| [ADR-011](decisions/ADR-011-workflow-execution-pipeline.md) | Workflow execution pipeline policy       | Accepted |
+| ADR                                                                      | Title                                    | Status   |
+| ------------------------------------------------------------------------ | ---------------------------------------- | -------- |
+| [ADR-004](decisions/ADR-004-inventory-reservation.md)                    | Inventory reservation                    | Accepted |
+| [ADR-005](decisions/ADR-005-provider-sdk.md)                             | Provider SDK abstraction                 | Accepted |
+| [ADR-006](decisions/ADR-006-order-processing.md)                         | Order processing engine                  | Accepted |
+| [ADR-007](decisions/ADR-007-workflow-runtime.md)                         | Workflow runtime                         | Accepted |
+| [ADR-008](decisions/ADR-008-core-and-engine-boundaries.md)               | Core and engine package boundaries       | Accepted |
+| [ADR-009](decisions/ADR-009-automation-definitions.md)                   | Automation definitions and rule matching | Accepted |
+| [ADR-010](decisions/ADR-010-event-orchestration-policy.md)               | Event-to-workflow orchestration policy   | Accepted |
+| [ADR-011](decisions/ADR-011-workflow-execution-pipeline.md)              | Workflow execution pipeline policy       | Accepted |
+| [ADR-012](decisions/ADR-012-first-digital-fulfillment-vertical-slice.md) | First digital fulfillment vertical slice | Accepted |
 
 ### ADR-008 (Sprint 9): Core and engine package boundaries
 
@@ -165,6 +166,14 @@ Format: **Context → Decision → Consequences**
 **Decision:** Add `WorkflowDefinition`, pipeline step/result models, `PipelineRunner`, and in-memory step executors with sequential fatal-stop semantics. Keep separate from `WorkflowRuntime` lifecycle concerns.
 
 **Consequences:** Workflows are testable as declarative pipelines; future sprints can map definitions to runtime plans or port adapters. See [ADR-011 detail](decisions/ADR-011-workflow-execution-pipeline.md).
+
+### ADR-012 (Sprint 13): First digital fulfillment vertical slice
+
+**Context:** Sprints 11–12 connected orchestration and pipelines separately; Phase 2 requires proving full in-memory fulfillment without external integrations.
+
+**Decision:** Add `DigitalFulfillmentService`, `PipelineWorkflowExecutionPort`, fulfillment ports/adapters, pipeline step executors, and a test composition root wiring matcher → orchestrator → pipeline → ports.
+
+**Consequences:** In-memory vertical slice is proven; fake adapters prepare for Phase 3 commerce and provider integrations. See [ADR-012 detail](decisions/ADR-012-first-digital-fulfillment-vertical-slice.md).
 
 ---
 

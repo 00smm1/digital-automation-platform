@@ -1,3 +1,5 @@
+import type { PipelineStepExecutionResult } from './pipeline-step-execution-result.js';
+
 const cloneRecord = (value: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> =>
   structuredClone(value);
 
@@ -10,6 +12,7 @@ export type PipelineStepExecutionContext = {
   readonly runId: string;
   readonly input: Readonly<Record<string, unknown>>;
   readonly metadata: Readonly<Record<string, unknown>>;
+  readonly priorStepOutputs: readonly PipelineStepExecutionResult[];
 };
 
 export const createPipelineStepExecutionContext = (
@@ -20,6 +23,7 @@ export const createPipelineStepExecutionContext = (
   runId: params.runId,
   input: cloneRecord(params.input),
   metadata: cloneRecord(params.metadata),
+  priorStepOutputs: params.priorStepOutputs.map((output) => ({ ...output })),
 });
 
 export const clonePipelineStepExecutionContext = (

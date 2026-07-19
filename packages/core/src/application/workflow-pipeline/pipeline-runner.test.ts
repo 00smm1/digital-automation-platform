@@ -25,6 +25,7 @@ const createContext = (input: Record<string, unknown> = {}) =>
     runId: 'run-001',
     input: { orderId: 'order-1001', ...input },
     metadata: { correlationId: 'evt-001' },
+    priorStepOutputs: [],
   });
 
 const createRunner = () => {
