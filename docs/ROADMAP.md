@@ -2,7 +2,7 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 10 (automation definitions)
+**Last updated:** Sprint 11 (event orchestration)
 
 ## Overview
 
@@ -61,9 +61,9 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** In progress (Sprint 10 partial)
+**Status:** In progress (Sprint 11 partial)
 
-**Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, and durable run lifecycle — still in-memory where possible before persistence lands.
+**Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, orchestration, and durable run lifecycle — still in-memory where possible before persistence lands.
 
 **Delivered (Sprint 10)**
 
@@ -74,17 +74,27 @@ Phased delivery plan for the Digital Automation Platform.
 - `AutomationDefinitionRepository` contract and in-memory implementation
 - Unit and application-level tests; [ADR-009](decisions/ADR-009-automation-definitions.md)
 
+**Delivered (Sprint 11)**
+
+- `PlatformEventOrchestrator` — normalized event → matcher → workflow execution → aggregate result
+- `WorkflowExecutionPort` application contract and `InMemoryWorkflowExecutionPort` test adapter
+- `WorkflowExecutionRequest`, `WorkflowExecutionOutcome`, `PlatformEventOrchestrationResult`
+- Sequential multi-match execution with continue-on-failure policy
+- Explicit execution identity via injected id generator; idempotency insertion point documented
+- Application-level end-to-end tests; [ADR-010](decisions/ADR-010-event-orchestration-policy.md)
+
 **Remaining planned work**
 
-- Action execution wiring through existing automation, inventory, provider, and workflow modules
-- Idempotency contracts (keys, deduplication interfaces)
+- Production `WorkflowExecutionPort` adapter over `WorkflowRuntime`
+- Order processing integration (event → match → order plan → workflow runtime)
+- Idempotency contracts (keys, deduplication interfaces) and storage
 - Workflow persistence contracts (repository interfaces, run snapshots)
 - Run lifecycle and failure handling (resume, abandon, compensating action hooks)
-- First in-memory end-to-end vertical flow: synthetic event → rule match → order processing → workflow runtime
+- Full in-memory vertical flow: synthetic event → matched rule → fulfilled order path
 
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
 
-**Result:** Not met. Sprint 10 completed definitions and matching only.
+**Result:** Not met. Sprint 11 completes event-to-workflow orchestration in memory; order fulfillment integration and idempotency contracts remain.
 
 ---
 

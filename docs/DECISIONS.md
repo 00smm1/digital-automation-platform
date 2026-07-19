@@ -131,6 +131,7 @@ Format: **Context → Decision → Consequences**
 | [ADR-007](decisions/ADR-007-workflow-runtime.md)           | Workflow runtime                         | Accepted |
 | [ADR-008](decisions/ADR-008-core-and-engine-boundaries.md) | Core and engine package boundaries       | Accepted |
 | [ADR-009](decisions/ADR-009-automation-definitions.md)     | Automation definitions and rule matching | Accepted |
+| [ADR-010](decisions/ADR-010-event-orchestration-policy.md) | Event-to-workflow orchestration policy   | Accepted |
 
 ### ADR-008 (Sprint 9): Core and engine package boundaries
 
@@ -147,6 +148,14 @@ Format: **Context → Decision → Consequences**
 **Decision:** Add `AutomationDefinition`, `RuleEvaluator`, and `AutomationMatcher` in `@dap/core`. Matching is separate from workflow execution. Higher numeric priority wins; empty condition groups pass when the trigger matches.
 
 **Consequences:** Matcher output can be wired to order processing and workflow runtime in Sprint 11+. See [ADR-009 detail](decisions/ADR-009-automation-definitions.md).
+
+### ADR-010 (Sprint 11): Event-to-workflow orchestration policy
+
+**Context:** Sprint 10 matching produces workflow references but does not execute workflows or return aggregate orchestration results.
+
+**Decision:** Add `PlatformEventOrchestrator`, `WorkflowExecutionPort`, execution request/outcome models, and sequential continue-on-failure execution. Use an explicit execution id generator; defer idempotency storage to a pre-loop insertion point.
+
+**Consequences:** In-memory end-to-end orchestration is testable; production wiring adds a port adapter over `WorkflowRuntime`. See [ADR-010 detail](decisions/ADR-010-event-orchestration-policy.md).
 
 ---
 
