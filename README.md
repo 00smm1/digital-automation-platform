@@ -6,7 +6,7 @@ A TypeScript monorepo for digital commerce automation — orchestrating orders, 
 
 ## Current project status
 
-The repository has completed **Phase 0** (vision and structure) and **Phase 1** (domain and execution foundation through Sprint 8). **Phase 2** (application orchestration) is in progress — Sprint 10 adds automation definitions and rule matching; Sprint 11 connects normalized events to workflow execution; Sprint 12 adds declarative workflow pipelines with sequential step execution. All substantive business logic lives in `@dap/core` as in-memory, provider-independent TypeScript.
+The repository has completed **Phase 0** (vision and structure) and **Phase 1** (domain and execution foundation through Sprint 8). **Phase 2** (application orchestration) is in progress — Sprints 10–12 built matching, orchestration, and pipelines; **Sprint 13 proves the first in-memory digital fulfillment vertical slice** end to end. All substantive business logic lives in `@dap/core` as in-memory, provider-independent TypeScript.
 
 What exists today:
 
@@ -16,6 +16,7 @@ What exists today:
 - **Automation definitions, triggers, conditions, and deterministic rule matching**
 - **Event-to-workflow orchestration — matcher → workflow execution port → aggregate result**
 - **Workflow execution pipeline — definitions, sequential steps, fatal-stop failure policy**
+- **Digital fulfillment vertical slice — event → match → pipeline → inventory → provisioning → notification**
 - Inventory reservation lifecycle
 - Provider SDK contracts and registry
 - Order processing and execution plans
@@ -27,7 +28,7 @@ What does **not** exist yet:
 - Database persistence, queues, authentication, or production deployment
 - Vendor adapters (AdfPay, IPTV, email SMTP), storefront integrations, or engine package implementations beyond stubs
 
-## Completed capabilities (Sprints 0–12)
+## Completed capabilities (Sprints 0–13)
 
 | Sprint | Capability                                                                                   |
 | ------ | -------------------------------------------------------------------------------------------- |
@@ -44,6 +45,7 @@ What does **not** exist yet:
 | 10     | Automation definitions — triggers, conditions, rule evaluator, matcher, in-memory repository |
 | 11     | Event orchestration — workflow execution port, sequential multi-match, structured results    |
 | 12     | Workflow pipeline — definitions, step executors, pipeline runner, fatal-stop execution       |
+| 13     | Digital fulfillment vertical slice — ports, adapters, end-to-end in-memory composition       |
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for phase planning and [docs/ARCHITECTURE_BASELINE.md](docs/ARCHITECTURE_BASELINE.md) for the current architecture snapshot.
 

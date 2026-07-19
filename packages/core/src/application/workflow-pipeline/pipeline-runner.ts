@@ -1,6 +1,6 @@
 import type { WorkflowDefinition } from '../../domain/workflow-pipeline/workflow-definition.js';
 import type { PipelineStepExecutionContext } from '../../domain/workflow-pipeline/pipeline-step-execution-context.js';
-import { clonePipelineStepExecutionContext } from '../../domain/workflow-pipeline/pipeline-step-execution-context.js';
+import { createPipelineStepExecutionContext } from '../../domain/workflow-pipeline/pipeline-step-execution-context.js';
 import { createPipelineExecutionResult } from '../../domain/workflow-pipeline/pipeline-execution-result.js';
 import type { PipelineExecutionResult } from '../../domain/workflow-pipeline/pipeline-execution-result.js';
 import { createPipelineStepExecutionResultFromError } from '../../domain/workflow-pipeline/pipeline-step-execution-result.js';
@@ -46,12 +46,13 @@ export class PipelineRunner {
 
     for (const stepDefinition of definition.steps) {
       const stepStartedAt = new Date();
+      const stepContext = createPipelineStepExecutionContext({
+        ...context,
+        priorStepOutputs: completedSteps,
+      });
 
       try {
-        const stepResult = await this.stepExecutorRegistry.execute(
-          clonePipelineStepExecutionContext(context),
-          stepDefinition,
-        );
+        const stepResult = await this.stepExecutorRegistry.execute(stepContext, stepDefinition);
 
         if (stepResult.status === 'failed') {
           const completedAt = new Date();

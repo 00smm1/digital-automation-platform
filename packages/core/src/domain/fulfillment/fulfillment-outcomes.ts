@@ -1,0 +1,26 @@
+import type { ProvisioningDelivery } from './provisioning-delivery.js';
+
+export type InventoryFulfillmentOutcome = {
+  readonly status: 'reserved' | 'notAttempted' | 'failed';
+  readonly inventoryItemId?: string;
+  readonly productReference?: string;
+  readonly reservedQuantity?: number;
+  readonly failureCode?: string;
+  readonly failureReason?: string;
+};
+
+export type ProvisioningFulfillmentOutcome = {
+  readonly status: 'provisioned' | 'notAttempted' | 'failed';
+  readonly providerReference?: string;
+  readonly delivery?: ProvisioningDelivery;
+  readonly failureCode?: string;
+  readonly failureReason?: string;
+};
+
+export type NotificationFulfillmentOutcome = {
+  readonly status: 'sent' | 'notAttempted' | 'failed';
+  readonly channel?: string;
+  readonly notificationReference?: string;
+  readonly failureCode?: string;
+  readonly failureReason?: string;
+};

@@ -1,4 +1,5 @@
 import type { WorkflowExecutionResult } from '../workflow/workflow-execution-result.js';
+import type { PipelineExecutionResult } from '../workflow-pipeline/pipeline-execution-result.js';
 
 export type WorkflowExecutionOutcomeStatus = 'succeeded' | 'failed' | 'cancelled';
 
@@ -11,6 +12,7 @@ export type WorkflowExecutionOutcome = {
   readonly workflowId: string;
   readonly status: WorkflowExecutionOutcomeStatus;
   readonly workflowResult?: WorkflowExecutionResult;
+  readonly pipelineExecutionResult?: PipelineExecutionResult;
   readonly failureReason?: string;
 };
 
@@ -20,6 +22,7 @@ export const createWorkflowExecutionOutcome = (params: {
   workflowId: string;
   status: WorkflowExecutionOutcomeStatus;
   workflowResult?: WorkflowExecutionResult;
+  pipelineExecutionResult?: PipelineExecutionResult;
   failureReason?: string;
 }): WorkflowExecutionOutcome => ({
   executionId: params.executionId,
@@ -27,6 +30,7 @@ export const createWorkflowExecutionOutcome = (params: {
   workflowId: params.workflowId,
   status: params.status,
   workflowResult: params.workflowResult,
+  pipelineExecutionResult: params.pipelineExecutionResult,
   failureReason: params.failureReason,
 });
 
