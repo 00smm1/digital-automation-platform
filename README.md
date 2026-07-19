@@ -6,13 +6,14 @@ A TypeScript monorepo for digital commerce automation — orchestrating orders, 
 
 ## Current project status
 
-The repository has completed **Phase 0** (vision and structure) and **Phase 1** (domain and execution foundation through Sprint 8). All substantive business logic currently lives in `@dap/core` as in-memory, provider-independent domain and application code.
+The repository has completed **Phase 0** (vision and structure) and **Phase 1** (domain and execution foundation through Sprint 8). **Phase 2** (application orchestration) is in progress — Sprint 10 adds automation definitions and rule matching. All substantive business logic lives in `@dap/core` as in-memory, provider-independent TypeScript.
 
 What exists today:
 
 - Clean Architecture foundations (entities, aggregates, value objects, CQRS contracts)
 - In-memory event bus
 - Automation pipeline execution
+- **Automation definitions, triggers, conditions, and deterministic rule matching**
 - Inventory reservation lifecycle
 - Provider SDK contracts and registry
 - Order processing and execution plans
@@ -24,19 +25,21 @@ What does **not** exist yet:
 - Database persistence, queues, authentication, or production deployment
 - Vendor adapters (AdfPay, IPTV, email SMTP), storefront integrations, or engine package implementations beyond stubs
 
-## Completed capabilities (Sprints 0–8)
+## Completed capabilities (Sprints 0–10)
 
-| Sprint | Capability                                                                                |
-| ------ | ----------------------------------------------------------------------------------------- |
-| 0      | Monorepo structure, vision, architecture docs, decision log                               |
-| 1      | Workspace bootstrap — pnpm, Turbo, TypeScript, ESLint, Prettier, Vitest, Husky            |
-| 2      | `@dap/core` Clean Architecture foundation — entities, errors, Result, Guard, CQRS markers |
-| 3      | In-memory event bus with handler isolation                                                |
-| 4      | Automation domain — pipelines, steps, executor, retry policy, execution log               |
-| 5      | Inventory domain — items, reservation, in-memory repository, inventory service            |
-| 6      | Provider SDK — Provider, Factory, Registry, capabilities, request/response contracts      |
-| 7      | Order processing — Order aggregate, validation, execution plans, orchestration service    |
-| 8      | Workflow runtime — sequential execution, policies, metrics, history, lifecycle events     |
+| Sprint | Capability                                                                                   |
+| ------ | -------------------------------------------------------------------------------------------- |
+| 0      | Monorepo structure, vision, architecture docs, decision log                                  |
+| 1      | Workspace bootstrap — pnpm, Turbo, TypeScript, ESLint, Prettier, Vitest, Husky               |
+| 2      | `@dap/core` Clean Architecture foundation — entities, errors, Result, Guard, CQRS markers    |
+| 3      | In-memory event bus with handler isolation                                                   |
+| 4      | Automation domain — pipelines, steps, executor, retry policy, execution log                  |
+| 5      | Inventory domain — items, reservation, in-memory repository, inventory service               |
+| 6      | Provider SDK — Provider, Factory, Registry, capabilities, request/response contracts         |
+| 7      | Order processing — Order aggregate, validation, execution plans, orchestration service       |
+| 8      | Workflow runtime — sequential execution, policies, metrics, history, lifecycle events        |
+| 9      | Architecture baseline — package boundaries, roadmap alignment, ADR-008                       |
+| 10     | Automation definitions — triggers, conditions, rule evaluator, matcher, in-memory repository |
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for phase planning and [docs/ARCHITECTURE_BASELINE.md](docs/ARCHITECTURE_BASELINE.md) for the current architecture snapshot.
 
@@ -109,7 +112,7 @@ pnpm --filter @dap/core build
 
 ## Next milestone
 
-**Phase 2 — Application orchestration** (Sprint 10+): automation definitions, rule matching, action execution, idempotency contracts, workflow persistence contracts, and the first in-memory end-to-end vertical flow. See [docs/ROADMAP.md](docs/ROADMAP.md).
+**Phase 2 (continued) — Sprint 11+:** wire matcher output to order processing and workflow runtime, add idempotency and workflow persistence contracts, and deliver the first in-memory end-to-end vertical flow. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentation
 
