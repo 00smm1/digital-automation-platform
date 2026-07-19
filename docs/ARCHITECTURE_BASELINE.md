@@ -1,8 +1,8 @@
 # Architecture Baseline
 
-Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 11**.  
+Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 12**.  
 **Owner:** Osama AL-Sharif  
-**Status:** Current baseline (Sprint 11)
+**Status:** Current baseline (Sprint 12)
 
 This document describes what exists in the repository today. For target-state design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -12,7 +12,7 @@ This document describes what exists in the repository today. For target-state de
 
 The platform automates digital commerce fulfillment — reserving inventory, invoking providers, running automation pipelines, and processing orders — independently of any single storefront or vendor SDK.
 
-After Sprint 11, all implemented logic resides in `@dap/core` as provider-independent, in-memory TypeScript. Apps and engine packages are structural placeholders awaiting further Phase 2+ work.
+After Sprint 12, all implemented logic resides in `@dap/core` as provider-independent, in-memory TypeScript. Apps and engine packages are structural placeholders awaiting further Phase 2+ work.
 
 ---
 
@@ -66,6 +66,7 @@ All paths relative to `packages/core/src/domain/`.
 | `automation/`            | `AutomationPipeline`, `AutomationStep`, `AutomationContext`, `AutomationResult` | Pipeline execution model         |
 | `automation-definition/` | `AutomationDefinition`, `RuleEvaluator`, `NormalizedPlatformEvent`              | Event-triggered rule definitions |
 | `orchestration/`         | `WorkflowExecutionRequest`, `WorkflowExecutionOutcome`, orchestration result    | Event-to-workflow orchestration  |
+| `workflow-pipeline/`     | `WorkflowDefinition`, `PipelineStepDefinition`, pipeline results                | Declarative workflow pipelines   |
 | `inventory/`             | `InventoryItem`, `InventoryRepository`, domain events                           | Inventory lifecycle              |
 | `provider/`              | `Provider`, `ProviderRegistry`, `ProviderFactory`, capabilities                 | Provider abstraction             |
 | `order/`                 | `Order`, `OrderItem`, `ExecutionPlan`, processing events                        | Order fulfillment model          |
@@ -84,6 +85,7 @@ All paths relative to `packages/core/src/application/`.
 | `automation/`                        | `AutomationExecutor`, command handler                                                 | Pipeline execution + events       |
 | `automation-definition/`             | `AutomationMatcher`                                                                   | Rule matching orchestration       |
 | `orchestration/`                     | `PlatformEventOrchestrator`, `WorkflowExecutionPort`, `InMemoryWorkflowExecutionPort` | Event-to-workflow orchestration   |
+| `workflow-pipeline/`                 | `PipelineRunner`, `InMemoryPipelineStepExecutorRegistry`                              | Workflow pipeline execution       |
 | `inventory/`                         | `InventoryService`                                                                    | Inventory lifecycle orchestration |
 | `order/`                             | `OrderProcessingService`, `OrderValidator`, `ExecutionPlanBuilder`, `OrderProcessor`  | Order fulfillment orchestration   |
 | `workflow/`                          | `WorkflowRuntime`, step executor registry, execution plan adapter                     | Workflow execution orchestration  |
@@ -140,15 +142,16 @@ See [PACKAGE_BOUNDARIES.md](PACKAGE_BOUNDARIES.md) for detailed per-package rule
 
 ## In-memory implementations
 
-| Concern                         | Implementation                           | Location                        |
-| ------------------------------- | ---------------------------------------- | ------------------------------- |
-| Event dispatch                  | `InMemoryEventBus`                       | `application/events/`           |
-| Inventory storage               | `InMemoryInventoryRepository`            | `domain/inventory/`             |
-| Provider instances              | `ProviderRegistry` + injected factories  | `domain/provider/`              |
-| Automation definitions          | `InMemoryAutomationDefinitionRepository` | `domain/automation-definition/` |
-| Workflow execution (tests)      | `InMemoryWorkflowExecutionPort`          | `application/orchestration/`    |
-| Workflow step handlers          | `InMemoryWorkflowStepExecutorRegistry`   | `application/workflow/`         |
-| Workflow/order/automation state | Process memory only                      | Lost on restart                 |
+| Concern                         | Implementation                           | Location                         |
+| ------------------------------- | ---------------------------------------- | -------------------------------- |
+| Event dispatch                  | `InMemoryEventBus`                       | `application/events/`            |
+| Inventory storage               | `InMemoryInventoryRepository`            | `domain/inventory/`              |
+| Provider instances              | `ProviderRegistry` + injected factories  | `domain/provider/`               |
+| Automation definitions          | `InMemoryAutomationDefinitionRepository` | `domain/automation-definition/`  |
+| Workflow execution (tests)      | `InMemoryWorkflowExecutionPort`          | `application/orchestration/`     |
+| Pipeline step executors (tests) | `InMemoryPipelineStepExecutorRegistry`   | `application/workflow-pipeline/` |
+| Workflow step handlers          | `InMemoryWorkflowStepExecutorRegistry`   | `application/workflow/`          |
+| Workflow/order/automation state | Process memory only                      | Lost on restart                  |
 
 All implementations are deterministic and suitable for unit testing without external services.
 
