@@ -63,9 +63,7 @@ export const createProvisionDigitalProductStepExecutor = (
           delivery: provisionResult.value.delivery,
         },
       });
-    } catch (error: unknown) {
-      const failureReason = error instanceof Error ? error.message : 'Provisioning failed.';
-
+    } catch {
       return createPipelineStepExecutionResult({
         stepId: step.id,
         stepName: step.name,
@@ -73,7 +71,7 @@ export const createProvisionDigitalProductStepExecutor = (
         status: 'failed',
         startedAt,
         completedAt,
-        failureReason,
+        failureReason: 'Digital product provisioning failed unexpectedly.',
         output: { failureCode: 'PROVISIONING_EXCEPTION' },
       });
     }

@@ -121,9 +121,12 @@ describe('DigitalFulfillmentService vertical slice', () => {
     const result = await stack.fulfillmentService.fulfill(createRequest());
 
     expect(result.status).toBe('failed');
-    expect(result.provisioningOutcome.failureReason).toBe('runtime exploded');
+    expect(result.provisioningOutcome.failureReason).toBe(
+      'Digital product provisioning failed unexpectedly.',
+    );
     expect(result.provisioningOutcome.failureReason).not.toContain('secret-');
     expect(result.failureReason).not.toContain('secret-');
+    expect(result.failureReason).not.toContain('runtime exploded');
   });
 
   it('executes multiple matched automations in deterministic orchestrator order', async () => {

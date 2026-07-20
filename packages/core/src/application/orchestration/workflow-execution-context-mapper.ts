@@ -33,6 +33,7 @@ export const mapWorkflowExecutionRequestToPipelineContext = (
       ...metadata,
       occurredAt: request.occurredAt.toISOString(),
       automationId: request.automationId,
+      ...(request.executionRunId === undefined ? {} : { executionRunId: request.executionRunId }),
     },
     priorStepOutputs: [],
   });

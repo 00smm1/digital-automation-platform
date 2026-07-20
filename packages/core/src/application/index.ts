@@ -7,6 +7,7 @@ export * from './order/index.js';
 export * from './workflow/index.js';
 export * from './workflow-pipeline/index.js';
 export * from './inbound-event/index.js';
+export * from './execution-run/index.js';
 export * from './commands/index.js';
 export * from './events/index.js';
 export * from './handlers/index.js';

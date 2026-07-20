@@ -32,7 +32,7 @@ const isValidOrderPaidPayload = (payload: unknown): payload is ValidExternalOrde
     payload.productReference.trim().length > 0 &&
     typeof payload.quantity === 'number' &&
     Number.isInteger(payload.quantity) &&
-    payload.quantity > 0
+    payload.quantity >= 0
   );
 };
 

@@ -135,6 +135,7 @@ Format: **Context → Decision → Consequences**
 | [ADR-011](decisions/ADR-011-workflow-execution-pipeline.md)              | Workflow execution pipeline policy       | Accepted |
 | [ADR-012](decisions/ADR-012-first-digital-fulfillment-vertical-slice.md) | First digital fulfillment vertical slice | Accepted |
 | [ADR-013](decisions/ADR-013-inbound-event-gateway.md)                    | Inbound event gateway and idempotency    | Accepted |
+| [ADR-014](decisions/ADR-014-execution-run-lifecycle.md)                  | Execution run lifecycle and audit trail  | Accepted |
 
 ### ADR-008 (Sprint 9): Core and engine package boundaries
 
@@ -183,6 +184,14 @@ Format: **Context → Decision → Consequences**
 **Decision:** Add `ExternalEventEnvelope`, `InboundEventAdapter`, `InboundEventGateway`, idempotency key/record/store contracts, and in-memory implementation. Gateway claims idempotency before orchestration and returns structured duplicate/rejection/failure results.
 
 **Consequences:** Future WooCommerce/Salla/Shopify/payment adapters implement `InboundEventAdapter`; HTTP ingress deferred. See [ADR-013 detail](decisions/ADR-013-inbound-event-gateway.md).
+
+### ADR-014 (Sprint 15): Execution run lifecycle and audit trail contracts
+
+**Context:** Accepted inbound events traverse orchestration and pipelines without a provider-neutral audit record of progress and outcomes.
+
+**Decision:** Add `ExecutionRun`, repository port, in-memory implementation, `ExecutionRunCoordinator`, lifecycle/progress observer ports, and safe audit read model integrated with gateway, orchestrator, and pipeline runner.
+
+**Consequences:** Future dashboards and APIs can consume safe audit records; durable persistence and replay remain deferred. See [ADR-014 detail](decisions/ADR-014-execution-run-lifecycle.md).
 
 ---
 
