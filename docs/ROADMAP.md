@@ -2,7 +2,7 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 14 (inbound event gateway)
+**Last updated:** Sprint 15 (execution run lifecycle)
 
 ## Overview
 
@@ -61,7 +61,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** In progress (Sprint 14 partial — inbound gateway and idempotency contracts)
+**Status:** In progress (Sprint 15 partial — execution run lifecycle and audit trail contracts)
 
 **Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, orchestration, and durable run lifecycle — still in-memory where possible before persistence lands.
 
@@ -112,20 +112,29 @@ Phased delivery plan for the Digital Automation Platform.
 - `createInboundGatewayStack()` composition root wiring gateway to fulfillment stack
 - 18+ gateway end-to-end tests; [ADR-013](decisions/ADR-013-inbound-event-gateway.md)
 
+**Delivered (Sprint 15)**
+
+- `ExecutionRun` aggregate with explicit lifecycle states and step progress
+- `ExecutionRunRepository` port and `InMemoryExecutionRunRepository`
+- `ExecutionRunCoordinator` with lifecycle and pipeline progress observer ports
+- `ExecutionRunAuditRecord` safe read model for future dashboards and APIs
+- `Clock` / `FakeClock` for deterministic timestamps
+- Gateway, orchestrator, and pipeline runner integration without bypassing existing flow
+- 20+ lifecycle end-to-end tests; [ADR-014](decisions/ADR-014-execution-run-lifecycle.md)
+
 **Remaining planned work**
 
 - HTTP/webhook ingress in `apps/api-server`
 - Vendor-specific inbound adapters (WooCommerce, Salla, Shopify, payment gateways)
-- Persistence-backed idempotency store and stale-claim recovery
-- Workflow persistence contracts (repository interfaces, run snapshots)
-- Run lifecycle and failure handling (resume, abandon, compensating action hooks)
+- Persistence-backed idempotency store and execution run repository
+- Stale-claim recovery and run replay/resume
 - Unify `OrderProcessingService` path with fulfillment pipeline where appropriate
 - Reservation compensation on downstream failure
 - Orchestration-level `(eventId, automationId)` deduplication from ADR-010
 
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
 
-**Result:** Partially met. Sprints 13–14 prove in-memory event → match → pipeline → fulfillment with fake adapters and gateway-level idempotency. HTTP ingress, vendor adapters, and durable idempotency remain outstanding.
+**Result:** Partially met. Sprints 13–15 prove in-memory event → match → pipeline → fulfillment with gateway idempotency and execution-run audit trails. HTTP ingress, vendor adapters, and durable persistence remain outstanding.
 
 ---
 

@@ -1,5 +1,6 @@
 import type { Identifier } from '../../shared/types/identifier.js';
 import type { NormalizedPlatformEventPayload } from '../automation-definition/normalized-platform-event.js';
+import type { ExecutionRunId } from '../execution-run/execution-run-id.js';
 
 export type WorkflowExecutionRequestId = Identifier<'WorkflowExecution'>;
 
@@ -15,6 +16,7 @@ export type WorkflowExecutionRequest = {
   readonly occurredAt: Date;
   readonly correlationId: string;
   readonly payload: NormalizedPlatformEventPayload;
+  readonly executionRunId?: ExecutionRunId;
 };
 
 export const createWorkflowExecutionRequest = (

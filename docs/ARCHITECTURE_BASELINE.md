@@ -1,8 +1,8 @@
 # Architecture Baseline
 
-Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 14**.  
+Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 15**.  
 **Owner:** Osama AL-Sharif  
-**Status:** Current baseline (Sprint 14)
+**Status:** Current baseline (Sprint 15)
 
 This document describes what exists in the repository today. For target-state design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -12,7 +12,7 @@ This document describes what exists in the repository today. For target-state de
 
 The platform automates digital commerce fulfillment — reserving inventory, invoking providers, running automation pipelines, and processing orders — independently of any single storefront or vendor SDK.
 
-After Sprint 14, all implemented logic resides in `@dap/core` as provider-independent, in-memory TypeScript. The first digital fulfillment vertical slice is proven through `DigitalFulfillmentService` with fake adapters. Inbound integration is modeled through `InboundEventGateway` with adapter ports and in-memory idempotency. Apps and engine packages are structural placeholders awaiting Phase 3 integrations.
+After Sprint 15, all implemented logic resides in `@dap/core` as provider-independent, in-memory TypeScript. The first digital fulfillment vertical slice is proven through `DigitalFulfillmentService` with fake adapters. Inbound integration is modeled through `InboundEventGateway` with adapter ports and in-memory idempotency. Execution-run lifecycle and safe audit records are tracked through `ExecutionRunCoordinator` without persistence infrastructure. Apps and engine packages are structural placeholders awaiting Phase 3 integrations.
 
 ---
 
@@ -49,6 +49,23 @@ flowchart TB
 **Inside boundary (implemented):** Domain models, application orchestration, in-memory event bus, in-memory inventory repository, workflow runtime, unit tests.
 
 **Outside boundary (not implemented):** HTTP servers, WordPress plugin runtime, database, queues, authentication, vendor HTTP clients, production deployment.
+
+---
+
+## Execution run lifecycle (Sprint 15)
+
+```mermaid
+flowchart TB
+    EXT[External Event] --> GW[Inbound Gateway]
+    GW --> IDEM[Idempotency]
+    IDEM --> RUN[Execution Run Lifecycle]
+    RUN --> O[Automation Orchestrator]
+    O --> P[Workflow Pipeline]
+    P --> BP[Business Ports]
+    BP --> AUDIT[Safe Audit Record]
+```
+
+Execution runs correlate source, external event ID, normalized event ID, matched automations, workflows, ordered step progress, and safe terminal outcomes. Persistence and dashboards are deferred.
 
 ---
 
@@ -115,6 +132,7 @@ All paths relative to `packages/core/src/domain/`.
 | `automation-definition/` | `AutomationDefinition`, `RuleEvaluator`, `NormalizedPlatformEvent`               | Event-triggered rule definitions |
 | `orchestration/`         | `WorkflowExecutionRequest`, `WorkflowExecutionOutcome`, orchestration result     | Event-to-workflow orchestration  |
 | `inbound-event/`         | `ExternalEventEnvelope`, `IdempotencyKey`, `IdempotencyStore`, processing result | Inbound integration and dedup    |
+| `execution-run/`         | `ExecutionRun`, `ExecutionRunAuditRecord`, `ExecutionRunRepository`              | Run lifecycle and audit trail    |
 | `workflow-pipeline/`     | `WorkflowDefinition`, `PipelineStepDefinition`, pipeline results                 | Declarative workflow pipelines   |
 | `fulfillment/`           | `DigitalFulfillmentRequest`, `DigitalFulfillmentResult`, provisioning delivery   | Digital fulfillment contracts    |
 | `notification/`          | `CustomerNotificationRequest`, `CustomerNotificationResult`                      | Notification contracts           |
@@ -138,6 +156,7 @@ All paths relative to `packages/core/src/application/`.
 | `automation-definition/`             | `AutomationMatcher`                                                                  | Rule matching orchestration       |
 | `orchestration/`                     | `PlatformEventOrchestrator`, `PipelineWorkflowExecutionPort`                         | Event-to-workflow orchestration   |
 | `inbound-event/`                     | `InboundEventGateway`, `FakeInboundEventAdapter`, composition root                   | Inbound integration boundary      |
+| `execution-run/`                     | `ExecutionRunCoordinator`, audit mapper, lifecycle/progress ports                    | Execution run lifecycle recording |
 | `workflow-pipeline/`                 | `PipelineRunner`, fulfillment step executors                                         | Workflow pipeline execution       |
 | `fulfillment/`                       | `DigitalFulfillmentService`, ports, fake adapters, composition root                  | Digital fulfillment use case      |
 | `inventory/`                         | `InventoryService`                                                                   | Inventory lifecycle orchestration |
@@ -207,6 +226,8 @@ See [PACKAGE_BOUNDARIES.md](PACKAGE_BOUNDARIES.md) for detailed per-package rule
 | Fulfillment adapters (tests)    | Fake provisioning, in-memory notification | `application/fulfillment/`       |
 | Idempotency store (tests)       | `InMemoryIdempotencyStore`                | `domain/inbound-event/`          |
 | Inbound adapter (tests)         | `FakeInboundEventAdapter`                 | `application/inbound-event/`     |
+| Execution run store (tests)     | `InMemoryExecutionRunRepository`          | `domain/execution-run/`          |
+| Clock (tests)                   | `FakeClock`                               | `shared/time/`                   |
 | Workflow step handlers          | `InMemoryWorkflowStepExecutorRegistry`    | `application/workflow/`          |
 | Workflow/order/automation state | Process memory only                       | Lost on restart                  |
 
@@ -216,16 +237,16 @@ All implementations are deterministic and suitable for unit testing without exte
 
 ## Known missing infrastructure
 
-| Capability             | Target phase                                     | Notes                         |
-| ---------------------- | ------------------------------------------------ | ----------------------------- |
-| PostgreSQL persistence | Phase 4                                          | Runs, inventory pools, audit  |
-| Queue / Redis          | Phase 4                                          | Async step execution, retries |
-| HTTP API server        | Phase 3                                          | Event ingestion               |
-| Authentication         | Phase 5                                          | API keys, operator auth       |
-| Idempotency store      | Phase 2 (in-memory contracts), Phase 4 (durable) | Gateway-level dedup in memory |
-| Workflow persistence   | Phase 2 (contracts), Phase 4 (implementation)    | Durable runs                  |
-| Vendor adapters        | Phase 3                                          | AdfPay, IPTV, email           |
-| Observability          | Phase 8                                          | Logs, metrics, traces         |
+| Capability             | Target phase                                     | Notes                             |
+| ---------------------- | ------------------------------------------------ | --------------------------------- |
+| PostgreSQL persistence | Phase 4                                          | Runs, inventory pools, audit      |
+| Queue / Redis          | Phase 4                                          | Async step execution, retries     |
+| HTTP API server        | Phase 3                                          | Event ingestion                   |
+| Authentication         | Phase 5                                          | API keys, operator auth           |
+| Idempotency store      | Phase 2 (in-memory contracts), Phase 4 (durable) | Gateway-level dedup in memory     |
+| Workflow persistence   | Phase 4 (durable runs)                           | Execution run contracts in memory |
+| Vendor adapters        | Phase 3                                          | AdfPay, IPTV, email               |
+| Observability          | Phase 8                                          | Logs, metrics, traces             |
 
 ---
 
