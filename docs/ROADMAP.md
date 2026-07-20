@@ -2,7 +2,7 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 15 (execution run lifecycle)
+**Last updated:** Sprint 16 (WooCommerce inbound adapter)
 
 ## Overview
 
@@ -61,7 +61,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** In progress (Sprint 15 partial — execution run lifecycle and audit trail contracts)
+**Status:** In progress (Sprint 16 partial — WooCommerce inbound adapter)
 
 **Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, orchestration, and durable run lifecycle — still in-memory where possible before persistence lands.
 
@@ -122,10 +122,19 @@ Phased delivery plan for the Digital Automation Platform.
 - Gateway, orchestrator, and pipeline runner integration without bypassing existing flow
 - 20+ lifecycle end-to-end tests; [ADR-014](decisions/ADR-014-execution-run-lifecycle.md)
 
+**Delivered (Sprint 16)**
+
+- `@dap/woocommerce-connector` integration package
+- `WooCommerceEnvelopeFactory` with HMAC signature verification port
+- `WooCommerceInboundEventAdapter` mapping `order.updated` paid orders to normalized `order.paid` events
+- Explicit policies for order status gating, product/variation mapping, customer reference, and multi-line-item rejection
+- `createWooCommerceInboundGatewayStack()` end-to-end composition root
+- 30+ adapter and gateway integration tests; [ADR-015](decisions/ADR-015-woocommerce-inbound-adapter.md)
+
 **Remaining planned work**
 
 - HTTP/webhook ingress in `apps/api-server`
-- Vendor-specific inbound adapters (WooCommerce, Salla, Shopify, payment gateways)
+- Additional vendor-specific inbound adapters (Salla, Shopify, payment gateways)
 - Persistence-backed idempotency store and execution run repository
 - Stale-claim recovery and run replay/resume
 - Unify `OrderProcessingService` path with fulfillment pipeline where appropriate
@@ -134,7 +143,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
 
-**Result:** Partially met. Sprints 13–15 prove in-memory event → match → pipeline → fulfillment with gateway idempotency and execution-run audit trails. HTTP ingress, vendor adapters, and durable persistence remain outstanding.
+**Result:** Partially met. Sprints 13–16 prove in-memory event → match → pipeline → fulfillment with gateway idempotency, execution-run audit trails, and the first real WooCommerce inbound adapter. HTTP ingress and durable persistence remain outstanding.
 
 ---
 

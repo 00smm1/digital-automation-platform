@@ -193,6 +193,14 @@ Format: **Context → Decision → Consequences**
 
 **Consequences:** Future dashboards and APIs can consume safe audit records; durable persistence and replay remain deferred. See [ADR-014 detail](decisions/ADR-014-execution-run-lifecycle.md).
 
+### ADR-015 (Sprint 16): WooCommerce inbound adapter
+
+**Context:** The inbound gateway is proven with fake adapters but has no real commerce connector. WooCommerce is the first Lord TV storefront.
+
+**Decision:** Add `@dap/woocommerce-connector` with envelope factory, HMAC signature verification, order payload parser, and `WooCommerceInboundEventAdapter`. Support `order.updated` for paid statuses (`processing`, `completed`) only; reject multi-line-item orders explicitly.
+
+**Consequences:** WooCommerce types stay outside `@dap/core`; HTTP ingress and WordPress plugin relay remain deferred. See [ADR-015 detail](decisions/ADR-015-woocommerce-inbound-adapter.md).
+
 ---
 
 ## Pending decisions
