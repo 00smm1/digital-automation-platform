@@ -2,7 +2,7 @@
 
 Package ownership, dependency direction, and current status for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 9
+**Last updated:** Sprint 14
 
 ---
 
@@ -110,7 +110,7 @@ flowchart TB
 - HTTP clients, ORMs, queue libraries, or vendor SDKs
 - WordPress, WooCommerce, or storefront-specific types
 
-**Current status:** **Implemented** — all business logic through Sprint 8 lives here.
+**Current status:** **Implemented** — all business logic through Sprint 14 lives here, including inbound gateway and idempotency contracts.
 
 **Planned responsibility:** Remain the canonical home for domain and application **contracts**. Infrastructure adapters will implement core repository and provider interfaces in future phases without moving domain models out of core.
 

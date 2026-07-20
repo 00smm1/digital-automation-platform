@@ -2,7 +2,7 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 13 (first vertical slice)
+**Last updated:** Sprint 14 (inbound event gateway)
 
 ## Overview
 
@@ -61,7 +61,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** In progress (Sprint 13 partial — vertical slice proven in memory)
+**Status:** In progress (Sprint 14 partial — inbound gateway and idempotency contracts)
 
 **Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, orchestration, and durable run lifecycle — still in-memory where possible before persistence lands.
 
@@ -102,17 +102,30 @@ Phased delivery plan for the Digital Automation Platform.
 - Notification and provisioning domain contracts in `@dap/core`
 - 12+ vertical slice and failure-path tests; [ADR-012](decisions/ADR-012-first-digital-fulfillment-vertical-slice.md)
 
+**Delivered (Sprint 14)**
+
+- `ExternalEventEnvelope` — provider-neutral inbound event envelope
+- `InboundEventAdapter` port and `FakeInboundEventAdapter` for tests
+- `InboundEventGateway` — normalization, idempotency claim, orchestration forwarding
+- `IdempotencyKey`, `IdempotencyRecord`, `IdempotencyStore` port, `InMemoryIdempotencyStore`
+- `InboundProcessingResult` with duplicate, rejection, and failure semantics
+- `createInboundGatewayStack()` composition root wiring gateway to fulfillment stack
+- 18+ gateway end-to-end tests; [ADR-013](decisions/ADR-013-inbound-event-gateway.md)
+
 **Remaining planned work**
 
-- Idempotency contracts (keys, deduplication interfaces) and storage
+- HTTP/webhook ingress in `apps/api-server`
+- Vendor-specific inbound adapters (WooCommerce, Salla, Shopify, payment gateways)
+- Persistence-backed idempotency store and stale-claim recovery
 - Workflow persistence contracts (repository interfaces, run snapshots)
 - Run lifecycle and failure handling (resume, abandon, compensating action hooks)
 - Unify `OrderProcessingService` path with fulfillment pipeline where appropriate
 - Reservation compensation on downstream failure
+- Orchestration-level `(eventId, automationId)` deduplication from ADR-010
 
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
 
-**Result:** Partially met. Sprint 13 proves in-memory event → match → pipeline → fulfillment with fake adapters. Idempotency and run lifecycle contracts remain outstanding.
+**Result:** Partially met. Sprints 13–14 prove in-memory event → match → pipeline → fulfillment with fake adapters and gateway-level idempotency. HTTP ingress, vendor adapters, and durable idempotency remain outstanding.
 
 ---
 

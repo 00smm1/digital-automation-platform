@@ -48,6 +48,10 @@ export class FakeDigitalProductProvisioningAdapter implements DigitalProductProv
     this.provisionCount = 0;
   }
 
+  getProvisionCount(): number {
+    return this.provisionCount;
+  }
+
   async provision(
     request: DigitalProductProvisioningRequest,
   ): Promise<
