@@ -1,0 +1,28 @@
+{
+  "name": "@dap/woocommerce-connector",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WooCommerce inbound webhook adapter and envelope boundary for the Digital Automation Platform",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@dap/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

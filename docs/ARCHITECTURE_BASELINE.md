@@ -1,8 +1,8 @@
 # Architecture Baseline
 
-Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 15**.  
+Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 16**.  
 **Owner:** Osama AL-Sharif  
-**Status:** Current baseline (Sprint 15)
+**Status:** Current baseline (Sprint 16)
 
 This document describes what exists in the repository today. For target-state design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -12,7 +12,7 @@ This document describes what exists in the repository today. For target-state de
 
 The platform automates digital commerce fulfillment — reserving inventory, invoking providers, running automation pipelines, and processing orders — independently of any single storefront or vendor SDK.
 
-After Sprint 15, all implemented logic resides in `@dap/core` as provider-independent, in-memory TypeScript. The first digital fulfillment vertical slice is proven through `DigitalFulfillmentService` with fake adapters. Inbound integration is modeled through `InboundEventGateway` with adapter ports and in-memory idempotency. Execution-run lifecycle and safe audit records are tracked through `ExecutionRunCoordinator` without persistence infrastructure. Apps and engine packages are structural placeholders awaiting Phase 3 integrations.
+After Sprint 16, all implemented business logic resides in `@dap/core` as provider-independent, in-memory TypeScript. The first digital fulfillment vertical slice is proven through `DigitalFulfillmentService` with fake adapters. Inbound integration is modeled through `InboundEventGateway` with adapter ports and in-memory idempotency. Execution-run lifecycle and safe audit records are tracked through `ExecutionRunCoordinator` without persistence infrastructure. The first real commerce connector (`@dap/woocommerce-connector`) maps WooCommerce order webhooks into provider-neutral envelopes and normalized events. Apps and engine packages are structural placeholders awaiting Phase 3 integrations.
 
 ---
 
@@ -90,6 +90,27 @@ flowchart TB
 ```
 
 Vendor-specific adapters implement `InboundEventAdapter` outside core gateway logic. HTTP ingress and real webhook endpoints are deferred.
+
+---
+
+## WooCommerce inbound adapter (Sprint 16)
+
+```mermaid
+flowchart TB
+    WC[WooCommerce Webhook] --> EF[WooCommerce Envelope Factory]
+    EF --> SIG[Signature Verification Port]
+    EF --> ENV[External Event Envelope]
+    ENV --> AD[WooCommerce Inbound Adapter]
+    AD --> N[Normalized Platform Event]
+    N --> GW[Inbound Event Gateway]
+    GW --> IDEM[Idempotency]
+    IDEM --> RUN[Execution Run Lifecycle]
+    RUN --> O[Automation Orchestrator]
+    O --> P[Workflow Pipeline]
+    P --> DF[Digital Fulfillment]
+```
+
+WooCommerce-specific code lives in `@dap/woocommerce-connector`. Real HTTP ingestion, WordPress plugin relay, AdfPay verification, and production WooCommerce connectivity are not complete.
 
 ---
 
