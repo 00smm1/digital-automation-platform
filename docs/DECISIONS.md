@@ -134,6 +134,7 @@ Format: **Context → Decision → Consequences**
 | [ADR-010](decisions/ADR-010-event-orchestration-policy.md)               | Event-to-workflow orchestration policy   | Accepted |
 | [ADR-011](decisions/ADR-011-workflow-execution-pipeline.md)              | Workflow execution pipeline policy       | Accepted |
 | [ADR-012](decisions/ADR-012-first-digital-fulfillment-vertical-slice.md) | First digital fulfillment vertical slice | Accepted |
+| [ADR-013](decisions/ADR-013-inbound-event-gateway.md)                    | Inbound event gateway and idempotency    | Accepted |
 
 ### ADR-008 (Sprint 9): Core and engine package boundaries
 
@@ -174,6 +175,14 @@ Format: **Context → Decision → Consequences**
 **Decision:** Add `DigitalFulfillmentService`, `PipelineWorkflowExecutionPort`, fulfillment ports/adapters, pipeline step executors, and a test composition root wiring matcher → orchestrator → pipeline → ports.
 
 **Consequences:** In-memory vertical slice is proven; fake adapters prepare for Phase 3 commerce and provider integrations. See [ADR-012 detail](decisions/ADR-012-first-digital-fulfillment-vertical-slice.md).
+
+### ADR-013 (Sprint 14): Inbound event gateway and idempotency contracts
+
+**Context:** External connectors will deliver vendor-specific payloads. Duplicate delivery and vendor mapping must not leak into orchestration or fulfillment use cases.
+
+**Decision:** Add `ExternalEventEnvelope`, `InboundEventAdapter`, `InboundEventGateway`, idempotency key/record/store contracts, and in-memory implementation. Gateway claims idempotency before orchestration and returns structured duplicate/rejection/failure results.
+
+**Consequences:** Future WooCommerce/Salla/Shopify/payment adapters implement `InboundEventAdapter`; HTTP ingress deferred. See [ADR-013 detail](decisions/ADR-013-inbound-event-gateway.md).
 
 ---
 

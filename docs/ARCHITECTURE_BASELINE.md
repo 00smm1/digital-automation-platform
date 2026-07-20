@@ -1,8 +1,8 @@
 # Architecture Baseline
 
-Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 13**.  
+Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 14**.  
 **Owner:** Osama AL-Sharif  
-**Status:** Current baseline (Sprint 13)
+**Status:** Current baseline (Sprint 14)
 
 This document describes what exists in the repository today. For target-state design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -12,7 +12,7 @@ This document describes what exists in the repository today. For target-state de
 
 The platform automates digital commerce fulfillment — reserving inventory, invoking providers, running automation pipelines, and processing orders — independently of any single storefront or vendor SDK.
 
-After Sprint 13, all implemented logic resides in `@dap/core` as provider-independent, in-memory TypeScript. The first digital fulfillment vertical slice is proven through `DigitalFulfillmentService` with fake adapters. Apps and engine packages are structural placeholders awaiting Phase 3 integrations.
+After Sprint 14, all implemented logic resides in `@dap/core` as provider-independent, in-memory TypeScript. The first digital fulfillment vertical slice is proven through `DigitalFulfillmentService` with fake adapters. Inbound integration is modeled through `InboundEventGateway` with adapter ports and in-memory idempotency. Apps and engine packages are structural placeholders awaiting Phase 3 integrations.
 
 ---
 
@@ -52,6 +52,30 @@ flowchart TB
 
 ---
 
+## Inbound event gateway (Sprint 14)
+
+```mermaid
+flowchart TB
+    EXT[External Systems] --> ENV[External Event Envelope]
+    ENV --> AD[Inbound Adapters]
+    AD --> N[Normalized Platform Event]
+    N --> GW[Inbound Event Gateway]
+    GW --> IDEM[Idempotency Store Port]
+    GW --> O[Platform Event Orchestrator]
+    O --> M[Automation Matcher]
+    O --> P[Pipeline Workflow Execution Port]
+    P --> R[Pipeline Runner]
+    R --> BP[Business Ports]
+    BP --> INV[Inventory]
+    BP --> PROV[Provisioning]
+    BP --> NOTIF[Notification]
+    GW --> RES[Inbound Processing Result]
+```
+
+Vendor-specific adapters implement `InboundEventAdapter` outside core gateway logic. HTTP ingress and real webhook endpoints are deferred.
+
+---
+
 ## Digital fulfillment vertical slice (Sprint 13)
 
 ```mermaid
@@ -80,24 +104,25 @@ flowchart TB
 
 All paths relative to `packages/core/src/domain/`.
 
-| Module                   | Key types                                                                       | Responsibility                   |
-| ------------------------ | ------------------------------------------------------------------------------- | -------------------------------- |
-| `entities/`              | `Entity`, `AggregateRoot`                                                       | Base entity patterns             |
-| `value-objects/`         | `ValueObject`                                                                   | Immutable value object base      |
-| `events/`                | `DomainEvent`, `EventName`, `EventHandler`                                      | Event contracts                  |
-| `repositories/`          | `IRepository`                                                                   | Repository marker interface      |
-| `services/`              | `IDomainService`                                                                | Domain service marker            |
-| `automation/`            | `AutomationPipeline`, `AutomationStep`, `AutomationContext`, `AutomationResult` | Pipeline execution model         |
-| `automation-definition/` | `AutomationDefinition`, `RuleEvaluator`, `NormalizedPlatformEvent`              | Event-triggered rule definitions |
-| `orchestration/`         | `WorkflowExecutionRequest`, `WorkflowExecutionOutcome`, orchestration result    | Event-to-workflow orchestration  |
-| `workflow-pipeline/`     | `WorkflowDefinition`, `PipelineStepDefinition`, pipeline results                | Declarative workflow pipelines   |
-| `fulfillment/`           | `DigitalFulfillmentRequest`, `DigitalFulfillmentResult`, provisioning delivery  | Digital fulfillment contracts    |
-| `notification/`          | `CustomerNotificationRequest`, `CustomerNotificationResult`                     | Notification contracts           |
-| `provisioning/`          | `DigitalProductProvisioningRequest`, `DigitalProductProvisioningResult`         | Provisioning contracts           |
-| `inventory/`             | `InventoryItem`, `InventoryRepository`, domain events                           | Inventory lifecycle              |
-| `provider/`              | `Provider`, `ProviderRegistry`, `ProviderFactory`, capabilities                 | Provider abstraction             |
-| `order/`                 | `Order`, `OrderItem`, `ExecutionPlan`, processing events                        | Order fulfillment model          |
-| `workflow/`              | `WorkflowExecution`, `WorkflowPlan`, metrics, history                           | Workflow runtime model           |
+| Module                   | Key types                                                                        | Responsibility                   |
+| ------------------------ | -------------------------------------------------------------------------------- | -------------------------------- |
+| `entities/`              | `Entity`, `AggregateRoot`                                                        | Base entity patterns             |
+| `value-objects/`         | `ValueObject`                                                                    | Immutable value object base      |
+| `events/`                | `DomainEvent`, `EventName`, `EventHandler`                                       | Event contracts                  |
+| `repositories/`          | `IRepository`                                                                    | Repository marker interface      |
+| `services/`              | `IDomainService`                                                                 | Domain service marker            |
+| `automation/`            | `AutomationPipeline`, `AutomationStep`, `AutomationContext`, `AutomationResult`  | Pipeline execution model         |
+| `automation-definition/` | `AutomationDefinition`, `RuleEvaluator`, `NormalizedPlatformEvent`               | Event-triggered rule definitions |
+| `orchestration/`         | `WorkflowExecutionRequest`, `WorkflowExecutionOutcome`, orchestration result     | Event-to-workflow orchestration  |
+| `inbound-event/`         | `ExternalEventEnvelope`, `IdempotencyKey`, `IdempotencyStore`, processing result | Inbound integration and dedup    |
+| `workflow-pipeline/`     | `WorkflowDefinition`, `PipelineStepDefinition`, pipeline results                 | Declarative workflow pipelines   |
+| `fulfillment/`           | `DigitalFulfillmentRequest`, `DigitalFulfillmentResult`, provisioning delivery   | Digital fulfillment contracts    |
+| `notification/`          | `CustomerNotificationRequest`, `CustomerNotificationResult`                      | Notification contracts           |
+| `provisioning/`          | `DigitalProductProvisioningRequest`, `DigitalProductProvisioningResult`          | Provisioning contracts           |
+| `inventory/`             | `InventoryItem`, `InventoryRepository`, domain events                            | Inventory lifecycle              |
+| `provider/`              | `Provider`, `ProviderRegistry`, `ProviderFactory`, capabilities                  | Provider abstraction             |
+| `order/`                 | `Order`, `OrderItem`, `ExecutionPlan`, processing events                         | Order fulfillment model          |
+| `workflow/`              | `WorkflowExecution`, `WorkflowPlan`, metrics, history                            | Workflow runtime model           |
 
 ---
 
@@ -112,6 +137,7 @@ All paths relative to `packages/core/src/application/`.
 | `automation/`                        | `AutomationExecutor`, command handler                                                | Pipeline execution + events       |
 | `automation-definition/`             | `AutomationMatcher`                                                                  | Rule matching orchestration       |
 | `orchestration/`                     | `PlatformEventOrchestrator`, `PipelineWorkflowExecutionPort`                         | Event-to-workflow orchestration   |
+| `inbound-event/`                     | `InboundEventGateway`, `FakeInboundEventAdapter`, composition root                   | Inbound integration boundary      |
 | `workflow-pipeline/`                 | `PipelineRunner`, fulfillment step executors                                         | Workflow pipeline execution       |
 | `fulfillment/`                       | `DigitalFulfillmentService`, ports, fake adapters, composition root                  | Digital fulfillment use case      |
 | `inventory/`                         | `InventoryService`                                                                   | Inventory lifecycle orchestration |
@@ -179,6 +205,8 @@ See [PACKAGE_BOUNDARIES.md](PACKAGE_BOUNDARIES.md) for detailed per-package rule
 | Workflow execution (tests)      | `InMemoryWorkflowExecutionPort`           | `application/orchestration/`     |
 | Pipeline step executors (tests) | `InMemoryPipelineStepExecutorRegistry`    | `application/workflow-pipeline/` |
 | Fulfillment adapters (tests)    | Fake provisioning, in-memory notification | `application/fulfillment/`       |
+| Idempotency store (tests)       | `InMemoryIdempotencyStore`                | `domain/inbound-event/`          |
+| Inbound adapter (tests)         | `FakeInboundEventAdapter`                 | `application/inbound-event/`     |
 | Workflow step handlers          | `InMemoryWorkflowStepExecutorRegistry`    | `application/workflow/`          |
 | Workflow/order/automation state | Process memory only                       | Lost on restart                  |
 
@@ -188,16 +216,16 @@ All implementations are deterministic and suitable for unit testing without exte
 
 ## Known missing infrastructure
 
-| Capability             | Target phase                                  | Notes                         |
-| ---------------------- | --------------------------------------------- | ----------------------------- |
-| PostgreSQL persistence | Phase 4                                       | Runs, inventory pools, audit  |
-| Queue / Redis          | Phase 4                                       | Async step execution, retries |
-| HTTP API server        | Phase 3                                       | Event ingestion               |
-| Authentication         | Phase 5                                       | API keys, operator auth       |
-| Idempotency store      | Phase 2 (contracts), Phase 4 (implementation) | Dedup order events            |
-| Workflow persistence   | Phase 2 (contracts), Phase 4 (implementation) | Durable runs                  |
-| Vendor adapters        | Phase 3                                       | AdfPay, IPTV, email           |
-| Observability          | Phase 8                                       | Logs, metrics, traces         |
+| Capability             | Target phase                                     | Notes                         |
+| ---------------------- | ------------------------------------------------ | ----------------------------- |
+| PostgreSQL persistence | Phase 4                                          | Runs, inventory pools, audit  |
+| Queue / Redis          | Phase 4                                          | Async step execution, retries |
+| HTTP API server        | Phase 3                                          | Event ingestion               |
+| Authentication         | Phase 5                                          | API keys, operator auth       |
+| Idempotency store      | Phase 2 (in-memory contracts), Phase 4 (durable) | Gateway-level dedup in memory |
+| Workflow persistence   | Phase 2 (contracts), Phase 4 (implementation)    | Durable runs                  |
+| Vendor adapters        | Phase 3                                          | AdfPay, IPTV, email           |
+| Observability          | Phase 8                                          | Logs, metrics, traces         |
 
 ---
 
@@ -207,7 +235,8 @@ All implementations are deterministic and suitable for unit testing without exte
 | -------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------ |
 | All logic in `@dap/core`                     | Engine packages are empty stubs                | Phase 2 — compose via engine packages per ADR-008      |
 | Order processor executes plans directly      | Workflow runtime not yet wired into order flow | Phase 2 — connect order processing to workflow runtime |
-| No idempotency                               | Duplicate events could double-fulfill          | Phase 2 contracts, Phase 4 implementation              |
+| No durable idempotency                       | In-memory only; lost on restart                | Phase 4 persistence                                    |
+| Gateway idempotency only                     | Per-source/event; not per-automation yet       | ADR-010 orchestration-level dedup in future sprint     |
 | In-memory-only state                         | No durability across restarts                  | Phase 4                                                |
 | `packages/core/README.md` outdated           | Says Sprint 2 only                             | Sprint 9 docs (optional follow-up)                     |
 | Vision ADR numbering vs sprint ADR numbering | Two ADR sequences in docs                      | Consolidate index in DECISIONS.md                      |

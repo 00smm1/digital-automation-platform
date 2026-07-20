@@ -10,6 +10,7 @@ export * from './fulfillment/index.js';
 export * from './notification/index.js';
 export * from './provisioning/index.js';
 export * from './workflow-pipeline/index.js';
+export * from './inbound-event/index.js';
 export * from './events/index.js';
 export * from './repositories/index.js';
 export * from './services/index.js';
