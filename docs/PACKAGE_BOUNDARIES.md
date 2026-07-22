@@ -24,6 +24,7 @@ flowchart TB
 
     subgraph adapters [Adapter packages]
         PSDk[provider-sdk]
+        WCC[woocommerce-connector]
         PAYPKG[payment]
         ADF[adfpay-connector]
     end
@@ -55,6 +56,7 @@ flowchart TB
     NE --> PSDk
 
     PSDk --> CORE
+    WCC --> CORE
     PAYPKG --> CORE
     ADF --> PAYPKG
     ADF --> CORE
@@ -115,7 +117,7 @@ flowchart TB
 - HTTP clients, ORMs, queue libraries, or vendor SDKs
 - WordPress, WooCommerce, or storefront-specific types
 
-**Current status:** **Implemented** — all business logic through Sprint 15 lives here, including inbound gateway, idempotency, and execution-run lifecycle contracts.
+**Current status:** **Implemented** — all business logic through Sprint 15 lives here, including inbound gateway, idempotency, and execution-run lifecycle contracts. WooCommerce-specific inbound code lives in `@dap/woocommerce-connector`.
 
 **Planned responsibility:** Remain the canonical home for domain and application **contracts**. Infrastructure adapters will implement core repository and provider interfaces in future phases without moving domain models out of core.
 
@@ -199,6 +201,38 @@ flowchart TB
 
 ---
 
+## packages/woocommerce-connector
+
+**Owns**
+
+- WooCommerce webhook envelope factory and signature verification
+- WooCommerce order payload parser and validation
+- `WooCommerceInboundEventAdapter` implementing `@dap/core` `InboundEventAdapter`
+- WooCommerce-specific error types and test fixtures
+- Test-focused composition root wiring WooCommerce adapter to inbound gateway stack
+
+**May depend on**
+
+- `@dap/core` (provider-neutral ports and contracts only)
+- Node.js built-ins (`node:crypto` for HMAC verification)
+
+**Must not depend on**
+
+- Any `apps/*` package
+- HTTP frameworks, ORMs, queue libraries
+- WordPress/WooCommerce npm SDKs (payload arrives as validated JSON)
+- `@dap/provider-sdk`
+
+**Must not expose into core**
+
+- WooCommerce field names, order REST shapes, or webhook header names in domain/application contracts
+
+**Current status:** **Implemented** — Sprint 16 first real commerce inbound adapter. See [ADR-015](decisions/ADR-015-woocommerce-inbound-adapter.md).
+
+**Planned responsibility:** Remain the canonical home for WooCommerce inbound mapping. HTTP ingress in `apps/api-server` composes this package; WordPress plugin relays signed payloads only.
+
+---
+
 ## packages/payment
 
 **Owns**
@@ -245,6 +279,8 @@ flowchart TB
 **Current status:** **Implemented** — Sprint 17 first payment gateway adapter (fake verification; production deferred).
 
 ---
+
+## packages/notification-engine
 
 **Owns (planned)**
 

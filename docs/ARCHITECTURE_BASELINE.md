@@ -12,7 +12,7 @@ This document describes what exists in the repository today. For target-state de
 
 The platform automates digital commerce fulfillment — reserving inventory, invoking providers, running automation pipelines, and processing orders — independently of any single storefront or vendor SDK.
 
-After Sprint 17, implemented business logic resides primarily in `@dap/core` and `@dap/payment` as provider-independent, in-memory TypeScript. The digital fulfillment vertical slice is proven through the inbound gateway, execution-run lifecycle, WooCommerce connector artifacts (where present), and payment confirmation with authorization gating. `@dap/adfpay-connector` maps AdfPay-shaped events into provider-neutral payment confirmations. Production HTTP ingress, official AdfPay verification, and persistence remain deferred.
+After Sprint 17, implemented business logic resides primarily in `@dap/core` and `@dap/payment` as provider-independent, in-memory TypeScript. The digital fulfillment vertical slice is proven through `DigitalFulfillmentService`, the inbound gateway, execution-run lifecycle, and payment confirmation with authorization gating. Inbound integration is modeled through `InboundEventGateway` with adapter ports and in-memory idempotency. Execution-run lifecycle and safe audit records are tracked through `ExecutionRunCoordinator` without persistence infrastructure. The first real commerce connector (`@dap/woocommerce-connector`) maps WooCommerce order webhooks into provider-neutral envelopes and normalized events. `@dap/adfpay-connector` maps AdfPay-shaped events into provider-neutral payment confirmations. Apps and engine packages are structural placeholders awaiting Phase 3 integrations. Production HTTP ingress, official AdfPay verification, and persistence remain deferred.
 
 ---
 
@@ -90,6 +90,27 @@ flowchart TB
 ```
 
 Vendor-specific adapters implement `InboundEventAdapter` outside core gateway logic. HTTP ingress and real webhook endpoints are deferred.
+
+---
+
+## WooCommerce inbound adapter (Sprint 16)
+
+```mermaid
+flowchart TB
+    WC[WooCommerce Webhook] --> EF[WooCommerce Envelope Factory]
+    EF --> SIG[Signature Verification Port]
+    EF --> ENV[External Event Envelope]
+    ENV --> AD[WooCommerce Inbound Adapter]
+    AD --> N[Normalized Platform Event]
+    N --> GW[Inbound Event Gateway]
+    GW --> IDEM[Idempotency]
+    IDEM --> RUN[Execution Run Lifecycle]
+    RUN --> O[Automation Orchestrator]
+    O --> P[Workflow Pipeline]
+    P --> DF[Digital Fulfillment]
+```
+
+WooCommerce-specific code lives in `@dap/woocommerce-connector`. Real HTTP ingestion, WordPress plugin relay, and production WooCommerce connectivity are not complete.
 
 ---
 
@@ -234,16 +255,17 @@ Application services receive dependencies via constructor injection (repositorie
 
 ## Package ownership
 
-| Package                    | Owns today                                                                     | Does not own                                    |
-| -------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------- |
-| `@dap/core`                | All domain models, application services, in-memory implementations, unit tests | HTTP, persistence, vendor SDKs                  |
-| `@dap/payment`             | Provider-neutral payment confirmation, authorization, correlation, repository  | Gateway parsing, HTTP, persistence              |
-| `@dap/adfpay-connector`    | AdfPay adapter, parser, fake signature verifier                                | Authorization policy, fulfillment orchestration |
-| `@dap/automation-engine`   | Nothing (stub)                                                                 | Domain models (future: composition only)        |
-| `@dap/inventory-engine`    | Nothing (stub)                                                                 | Domain models (future: persistence adapters)    |
-| `@dap/provider-sdk`        | Nothing (stub)                                                                 | Provider contracts (those live in core)         |
-| `@dap/notification-engine` | Nothing (stub)                                                                 | Notification domain (future)                    |
-| `apps/*`                   | Nothing (stubs)                                                                | Business rules                                  |
+| Package                      | Owns today                                                                     | Does not own                                    |
+| ---------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `@dap/core`                  | All domain models, application services, in-memory implementations, unit tests | HTTP, persistence, vendor SDKs                  |
+| `@dap/woocommerce-connector` | WooCommerce envelope, signature verification, inbound adapter                  | Authorization policy, fulfillment orchestration |
+| `@dap/payment`               | Provider-neutral payment confirmation, authorization, correlation, repository  | Gateway parsing, HTTP, persistence              |
+| `@dap/adfpay-connector`      | AdfPay adapter, parser, fake signature verifier                                | Authorization policy, fulfillment orchestration |
+| `@dap/automation-engine`     | Nothing (stub)                                                                 | Domain models (future: composition only)        |
+| `@dap/inventory-engine`      | Nothing (stub)                                                                 | Domain models (future: persistence adapters)    |
+| `@dap/provider-sdk`          | Nothing (stub)                                                                 | Provider contracts (those live in core)         |
+| `@dap/notification-engine`   | Nothing (stub)                                                                 | Notification domain (future)                    |
+| `apps/*`                     | Nothing (stubs)                                                                | Business rules                                  |
 
 See [PACKAGE_BOUNDARIES.md](PACKAGE_BOUNDARIES.md) for detailed per-package rules.
 

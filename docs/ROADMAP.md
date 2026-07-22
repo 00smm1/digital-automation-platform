@@ -2,7 +2,7 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 17 (payment confirmation and authorization)
+**Last updated:** Sprint 17 (WooCommerce inbound adapter and payment confirmation)
 
 ## Overview
 
@@ -61,7 +61,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** In progress (Sprint 17 partial — payment confirmation and authorization)
+**Status:** In progress (Sprint 17 partial — WooCommerce inbound adapter and payment confirmation)
 
 **Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, orchestration, and durable run lifecycle — still in-memory where possible before persistence lands.
 
@@ -122,6 +122,15 @@ Phased delivery plan for the Digital Automation Platform.
 - Gateway, orchestrator, and pipeline runner integration without bypassing existing flow
 - 20+ lifecycle end-to-end tests; [ADR-014](decisions/ADR-014-execution-run-lifecycle.md)
 
+**Delivered (Sprint 16)**
+
+- `@dap/woocommerce-connector` integration package
+- `WooCommerceEnvelopeFactory` with HMAC signature verification port
+- `WooCommerceInboundEventAdapter` mapping `order.updated` paid orders to normalized `order.paid` events
+- Explicit policies for order status gating, product/variation mapping, customer reference, and multi-line-item rejection
+- `createWooCommerceInboundGatewayStack()` end-to-end composition root
+- 30+ adapter and gateway integration tests; [ADR-015](decisions/ADR-015-woocommerce-inbound-adapter.md)
+
 **Delivered (Sprint 17)**
 
 - `@dap/payment` provider-neutral payment domain, repository, correlation, and authorization policy
@@ -133,7 +142,7 @@ Phased delivery plan for the Digital Automation Platform.
 **Remaining planned work**
 
 - HTTP/webhook ingress in `apps/api-server`
-- Additional vendor-specific inbound adapters (WooCommerce, Salla, Shopify)
+- Additional vendor-specific inbound adapters (Salla, Shopify, additional payment gateways)
 - Persistence-backed idempotency store and execution run repository
 - Stale-claim recovery and run replay/resume
 - Unify `OrderProcessingService` path with fulfillment pipeline where appropriate
@@ -142,7 +151,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
 
-**Result:** Partially met. Sprints 13–17 prove in-memory event → match → pipeline → fulfillment with gateway idempotency, execution-run audit trails, and payment authorization. HTTP ingress, production gateway connectivity, and durable persistence remain outstanding.
+**Result:** Partially met. Sprints 13–17 prove in-memory event → match → pipeline → fulfillment with gateway idempotency, execution-run audit trails, the first real WooCommerce inbound adapter, and payment authorization. HTTP ingress, production gateway connectivity, and durable persistence remain outstanding.
 
 ---
 

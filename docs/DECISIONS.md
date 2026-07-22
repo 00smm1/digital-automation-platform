@@ -136,6 +136,8 @@ Format: **Context → Decision → Consequences**
 | [ADR-012](decisions/ADR-012-first-digital-fulfillment-vertical-slice.md) | First digital fulfillment vertical slice | Accepted |
 | [ADR-013](decisions/ADR-013-inbound-event-gateway.md)                    | Inbound event gateway and idempotency    | Accepted |
 | [ADR-014](decisions/ADR-014-execution-run-lifecycle.md)                  | Execution run lifecycle and audit trail  | Accepted |
+| [ADR-015](decisions/ADR-015-woocommerce-inbound-adapter.md)              | WooCommerce inbound adapter              | Accepted |
+| [ADR-016](decisions/ADR-016-payment-confirmation-and-authorization.md)   | Payment confirmation and authorization   | Accepted |
 
 ### ADR-008 (Sprint 9): Core and engine package boundaries
 
@@ -192,6 +194,14 @@ Format: **Context → Decision → Consequences**
 **Decision:** Add `ExecutionRun`, repository port, in-memory implementation, `ExecutionRunCoordinator`, lifecycle/progress observer ports, and safe audit read model integrated with gateway, orchestrator, and pipeline runner.
 
 **Consequences:** Future dashboards and APIs can consume safe audit records; durable persistence and replay remain deferred. See [ADR-014 detail](decisions/ADR-014-execution-run-lifecycle.md).
+
+### ADR-015 (Sprint 16): WooCommerce inbound adapter
+
+**Context:** The inbound gateway is proven with fake adapters but has no real commerce connector. WooCommerce is the first Lord TV storefront.
+
+**Decision:** Add `@dap/woocommerce-connector` with envelope factory, HMAC signature verification, order payload parser, and `WooCommerceInboundEventAdapter`. Support `order.updated` for paid statuses (`processing`, `completed`) only; reject multi-line-item orders explicitly.
+
+**Consequences:** WooCommerce types stay outside `@dap/core`; HTTP ingress and WordPress plugin relay remain deferred. See [ADR-015 detail](decisions/ADR-015-woocommerce-inbound-adapter.md).
 
 ### ADR-016 (Sprint 17): Payment confirmation and authorization
 
