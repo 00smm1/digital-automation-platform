@@ -10,6 +10,7 @@ export const INBOUND_PROCESSING_STATUSES = [
   'rejected',
   'failed',
   'claimFailed',
+  'partialProcessing',
 ] as const;
 
 export type InboundProcessingStatus = (typeof INBOUND_PROCESSING_STATUSES)[number];

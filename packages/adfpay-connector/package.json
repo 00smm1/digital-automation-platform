@@ -1,0 +1,29 @@
+{
+  "name": "@dap/adfpay-connector",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AdfPay payment gateway adapter for the Digital Automation Platform",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@dap/core": "workspace:*",
+    "@dap/payment": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

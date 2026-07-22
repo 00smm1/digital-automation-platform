@@ -2,7 +2,7 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 15 (execution run lifecycle)
+**Last updated:** Sprint 17 (payment confirmation and authorization)
 
 ## Overview
 
@@ -61,7 +61,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** In progress (Sprint 15 partial — execution run lifecycle and audit trail contracts)
+**Status:** In progress (Sprint 17 partial — payment confirmation and authorization)
 
 **Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, orchestration, and durable run lifecycle — still in-memory where possible before persistence lands.
 
@@ -122,10 +122,18 @@ Phased delivery plan for the Digital Automation Platform.
 - Gateway, orchestrator, and pipeline runner integration without bypassing existing flow
 - 20+ lifecycle end-to-end tests; [ADR-014](decisions/ADR-014-execution-run-lifecycle.md)
 
+**Delivered (Sprint 17)**
+
+- `@dap/payment` provider-neutral payment domain, repository, correlation, and authorization policy
+- `@dap/adfpay-connector` first payment gateway adapter with fake authenticity verification
+- `PaymentProcessingService` end-to-end payment → authorization → inbound gateway → fulfillment flow
+- `OrderFulfillmentAuthorizationPort` preventing duplicate fulfillment across commerce and payment paths
+- Integer minor-unit `Money` representation; [ADR-016](decisions/ADR-016-payment-confirmation-and-authorization.md)
+
 **Remaining planned work**
 
 - HTTP/webhook ingress in `apps/api-server`
-- Vendor-specific inbound adapters (WooCommerce, Salla, Shopify, payment gateways)
+- Additional vendor-specific inbound adapters (WooCommerce, Salla, Shopify)
 - Persistence-backed idempotency store and execution run repository
 - Stale-claim recovery and run replay/resume
 - Unify `OrderProcessingService` path with fulfillment pipeline where appropriate
@@ -134,7 +142,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
 
-**Result:** Partially met. Sprints 13–15 prove in-memory event → match → pipeline → fulfillment with gateway idempotency and execution-run audit trails. HTTP ingress, vendor adapters, and durable persistence remain outstanding.
+**Result:** Partially met. Sprints 13–17 prove in-memory event → match → pipeline → fulfillment with gateway idempotency, execution-run audit trails, and payment authorization. HTTP ingress, production gateway connectivity, and durable persistence remain outstanding.
 
 ---
 

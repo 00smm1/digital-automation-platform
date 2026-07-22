@@ -15,6 +15,10 @@ import type { PlatformEventOrchestrator } from '../orchestration/platform-event-
 import type { InboundEventAdapter } from './inbound-event-adapter.js';
 import type { InboundEventGatewayDependencies } from './inbound-event-gateway.dependencies.js';
 import type { ExecutionRunCoordinator } from '../execution-run/execution-run-coordinator.js';
+import { extractExternalOrderReference } from '../execution-run/execution-run-safety.js';
+import { Result } from '../../shared/types/result.js';
+import type { OrderFulfillmentAuthorizationPort } from '../../domain/fulfillment/order-fulfillment-authorization-port.js';
+import type { OrderFulfillmentAuthorizationError } from '../../domain/fulfillment/errors/order-fulfillment-authorization-errors.js';
 
 const isOperationalError = (error: unknown): error is Error => error instanceof Error;
 
@@ -24,6 +28,81 @@ const createSafeNormalizationFailureMessage = (params: {
   eventType: string;
 }): string =>
   `Failed to normalize inbound event "${params.externalEventId}" from source "${params.sourceId}" (type: ${params.eventType}).`;
+
+const releaseAcquiredOrder = async (
+  authorization: OrderFulfillmentAuthorizationPort | undefined,
+  externalOrderReference: string | undefined,
+): Promise<Result<void, OrderFulfillmentAuthorizationError> | undefined> => {
+  if (authorization === undefined || externalOrderReference === undefined) {
+    return undefined;
+  }
+
+  return authorization.release({ externalOrderReference });
+};
+
+const markOrderFulfilled = async (
+  authorization: OrderFulfillmentAuthorizationPort | undefined,
+  externalOrderReference: string | undefined,
+): Promise<Result<void, OrderFulfillmentAuthorizationError> | undefined> => {
+  if (authorization === undefined || externalOrderReference === undefined) {
+    return undefined;
+  }
+
+  return authorization.markFulfilled({ externalOrderReference });
+};
+
+const createReleaseFailureResult = (params: {
+  envelope: ExternalEventEnvelope;
+  idempotencyKey: ReturnType<typeof createIdempotencyKey>;
+  normalizedEventId: string;
+  executionRunId?: ExecutionRunId;
+  executionRunStatus?: InboundProcessingResult['executionRunStatus'];
+  orchestrationResult?: InboundProcessingResult['orchestrationResult'];
+  releaseError: OrderFulfillmentAuthorizationError;
+}): InboundProcessingResult =>
+  createInboundProcessingResult({
+    status: 'failed',
+    sourceId: params.envelope.sourceId,
+    externalEventId: params.envelope.externalEventId,
+    idempotencyKey: params.idempotencyKey,
+    normalizedEventId: params.normalizedEventId,
+    executionRunId: params.executionRunId,
+    executionRunStatus: params.executionRunStatus ?? 'failed',
+    idempotencyState: 'failed',
+    orchestrationResult: params.orchestrationResult,
+    failureReason: params.releaseError.message,
+    failureCode: params.releaseError.failureCode,
+  });
+
+const handleReleaseFailure = async (params: {
+  authorization: OrderFulfillmentAuthorizationPort | undefined;
+  externalOrderReference: string | undefined;
+  envelope: ExternalEventEnvelope;
+  idempotencyKey: ReturnType<typeof createIdempotencyKey>;
+  normalizedEventId: string;
+  executionRunId?: ExecutionRunId;
+  executionRunStatus?: InboundProcessingResult['executionRunStatus'];
+  orchestrationResult?: InboundProcessingResult['orchestrationResult'];
+}): Promise<InboundProcessingResult | undefined> => {
+  const releaseResult = await releaseAcquiredOrder(
+    params.authorization,
+    params.externalOrderReference,
+  );
+
+  if (releaseResult !== undefined && !releaseResult.ok) {
+    return createReleaseFailureResult({
+      envelope: params.envelope,
+      idempotencyKey: params.idempotencyKey,
+      normalizedEventId: params.normalizedEventId,
+      executionRunId: params.executionRunId,
+      executionRunStatus: params.executionRunStatus,
+      orchestrationResult: params.orchestrationResult,
+      releaseError: releaseResult.error,
+    });
+  }
+
+  return undefined;
+};
 
 /**
  * Provider-neutral inbound integration boundary.
@@ -36,12 +115,14 @@ export class InboundEventGateway {
   private readonly orchestrator: PlatformEventOrchestrator;
   private readonly executionRunCoordinator?: ExecutionRunCoordinator;
   private readonly workflowDefinitionRepository?: InboundEventGatewayDependencies['workflowDefinitionRepository'];
+  private readonly orderFulfillmentAuthorization?: OrderFulfillmentAuthorizationPort;
 
   constructor(dependencies: InboundEventGatewayDependencies) {
     this.idempotencyStore = dependencies.idempotencyStore;
     this.orchestrator = dependencies.orchestrator;
     this.executionRunCoordinator = dependencies.executionRunCoordinator;
     this.workflowDefinitionRepository = dependencies.workflowDefinitionRepository;
+    this.orderFulfillmentAuthorization = dependencies.orderFulfillmentAuthorization;
   }
 
   async process(
@@ -83,6 +164,30 @@ export class InboundEventGateway {
     }
 
     const normalizedEvent = normalizationResult.value;
+    const externalOrderReference = extractExternalOrderReference(normalizedEvent.payload);
+
+    if (this.orderFulfillmentAuthorization !== undefined) {
+      if (externalOrderReference === undefined) {
+        return createInboundProcessingResult({
+          status: 'rejected',
+          sourceId: envelope.sourceId,
+          externalEventId: envelope.externalEventId,
+          failureReason: `Inbound event "${envelope.externalEventId}" is missing an external order reference.`,
+          failureCode: 'MISSING_ORDER_REFERENCE',
+        });
+      }
+
+      if (await this.orderFulfillmentAuthorization.isFulfilled(externalOrderReference)) {
+        return createInboundProcessingResult({
+          status: 'rejected',
+          sourceId: envelope.sourceId,
+          externalEventId: envelope.externalEventId,
+          failureReason: `Order "${externalOrderReference}" has already been fulfilled.`,
+          failureCode: 'ORDER_ALREADY_FULFILLED',
+        });
+      }
+    }
+
     const idempotencyKey = createIdempotencyKey({
       sourceId: envelope.sourceId,
       externalEventId: envelope.externalEventId,
@@ -126,6 +231,34 @@ export class InboundEventGateway {
       });
     }
 
+    let acquiredOrderReference: string | undefined;
+
+    if (this.orderFulfillmentAuthorization !== undefined && externalOrderReference !== undefined) {
+      const acquireResult = await this.orderFulfillmentAuthorization.tryAcquire({
+        externalOrderReference,
+      });
+
+      if (!acquireResult.ok) {
+        await this.idempotencyStore.markFailed({
+          key: idempotencyKey,
+          failureReason: acquireResult.error.message,
+        });
+
+        return createInboundProcessingResult({
+          status: 'rejected',
+          sourceId: envelope.sourceId,
+          externalEventId: envelope.externalEventId,
+          idempotencyKey,
+          normalizedEventId: normalizedEvent.eventId,
+          idempotencyState: 'failed',
+          failureReason: acquireResult.error.message,
+          failureCode: acquireResult.error.failureCode,
+        });
+      }
+
+      acquiredOrderReference = externalOrderReference;
+    }
+
     let executionRunId: ExecutionRunId | undefined;
 
     if (this.executionRunCoordinator !== undefined) {
@@ -136,10 +269,22 @@ export class InboundEventGateway {
       });
 
       if (!createRunResult.ok) {
+        const releaseFailure = await handleReleaseFailure({
+          authorization: this.orderFulfillmentAuthorization,
+          externalOrderReference: acquiredOrderReference,
+          envelope,
+          idempotencyKey,
+          normalizedEventId: normalizedEvent.eventId,
+        });
+
         await this.idempotencyStore.markFailed({
           key: idempotencyKey,
           failureReason: createRunResult.error.message,
         });
+
+        if (releaseFailure !== undefined) {
+          return releaseFailure;
+        }
 
         return createInboundProcessingResult({
           status: 'failed',
@@ -159,6 +304,16 @@ export class InboundEventGateway {
         await this.executionRunCoordinator.startProcessing(executionRunId);
 
       if (!startProcessingResult.ok) {
+        const releaseFailure = await handleReleaseFailure({
+          authorization: this.orderFulfillmentAuthorization,
+          externalOrderReference: acquiredOrderReference,
+          envelope,
+          idempotencyKey,
+          normalizedEventId: normalizedEvent.eventId,
+          executionRunId,
+          executionRunStatus: 'failed',
+        });
+
         await this.executionRunCoordinator.failRun({
           executionRunId,
           failureCode: startProcessingResult.error.failureCode,
@@ -168,6 +323,10 @@ export class InboundEventGateway {
           key: idempotencyKey,
           failureReason: startProcessingResult.error.message,
         });
+
+        if (releaseFailure !== undefined) {
+          return releaseFailure;
+        }
 
         return createInboundProcessingResult({
           status: 'failed',
@@ -221,6 +380,17 @@ export class InboundEventGateway {
         });
 
         if (!finalizeResult.ok) {
+          const releaseFailure = await handleReleaseFailure({
+            authorization: this.orderFulfillmentAuthorization,
+            externalOrderReference: acquiredOrderReference,
+            envelope,
+            idempotencyKey,
+            normalizedEventId: normalizedEvent.eventId,
+            executionRunId,
+            executionRunStatus: 'failed',
+            orchestrationResult,
+          });
+
           await this.executionRunCoordinator.failRun({
             executionRunId,
             failureCode: finalizeResult.error.failureCode,
@@ -230,6 +400,10 @@ export class InboundEventGateway {
             key: idempotencyKey,
             failureReason: finalizeResult.error.message,
           });
+
+          if (releaseFailure !== undefined) {
+            return releaseFailure;
+          }
 
           return createInboundProcessingResult({
             status: 'failed',
@@ -250,10 +424,25 @@ export class InboundEventGateway {
       }
 
       if (executionRunStatus === 'rejected') {
+        const releaseFailure = await handleReleaseFailure({
+          authorization: this.orderFulfillmentAuthorization,
+          externalOrderReference: acquiredOrderReference,
+          envelope,
+          idempotencyKey,
+          normalizedEventId: normalizedEvent.eventId,
+          executionRunId,
+          executionRunStatus,
+          orchestrationResult,
+        });
+
         await this.idempotencyStore.markFailed({
           key: idempotencyKey,
           failureReason: `Platform orchestration rejected event "${normalizedEvent.eventId}".`,
         });
+
+        if (releaseFailure !== undefined) {
+          return releaseFailure;
+        }
 
         return createInboundProcessingResult({
           status: 'rejected',
@@ -272,10 +461,25 @@ export class InboundEventGateway {
       if (orchestrationResult.overallStatus === 'failed') {
         const failureReason = `Platform orchestration failed for event "${normalizedEvent.eventId}".`;
 
+        const releaseFailure = await handleReleaseFailure({
+          authorization: this.orderFulfillmentAuthorization,
+          externalOrderReference: acquiredOrderReference,
+          envelope,
+          idempotencyKey,
+          normalizedEventId: normalizedEvent.eventId,
+          executionRunId,
+          executionRunStatus: executionRunStatus ?? 'failed',
+          orchestrationResult,
+        });
+
         await this.idempotencyStore.markFailed({
           key: idempotencyKey,
           failureReason,
         });
+
+        if (releaseFailure !== undefined) {
+          return releaseFailure;
+        }
 
         return createInboundProcessingResult({
           status: 'failed',
@@ -296,6 +500,27 @@ export class InboundEventGateway {
         key: idempotencyKey,
         orchestrationResult,
       });
+
+      const markResult = await markOrderFulfilled(
+        this.orderFulfillmentAuthorization,
+        acquiredOrderReference,
+      );
+
+      if (markResult !== undefined && !markResult.ok) {
+        return createInboundProcessingResult({
+          status: 'partialProcessing',
+          sourceId: envelope.sourceId,
+          externalEventId: envelope.externalEventId,
+          idempotencyKey,
+          normalizedEventId: normalizedEvent.eventId,
+          executionRunId,
+          executionRunStatus: executionRunStatus ?? 'completed',
+          idempotencyState: 'completed',
+          orchestrationResult,
+          failureReason: markResult.error.message,
+          failureCode: markResult.error.failureCode,
+        });
+      }
 
       return createInboundProcessingResult({
         status: 'processed',
@@ -335,10 +560,24 @@ export class InboundEventGateway {
         });
       }
 
+      const releaseFailure = await handleReleaseFailure({
+        authorization: this.orderFulfillmentAuthorization,
+        externalOrderReference: acquiredOrderReference,
+        envelope,
+        idempotencyKey,
+        normalizedEventId: normalizedEvent.eventId,
+        executionRunId,
+        executionRunStatus: 'failed',
+      });
+
       await this.idempotencyStore.markFailed({
         key: idempotencyKey,
         failureReason: safeFailure.failureReason,
       });
+
+      if (releaseFailure !== undefined) {
+        return releaseFailure;
+      }
 
       return createInboundProcessingResult({
         status: 'failed',

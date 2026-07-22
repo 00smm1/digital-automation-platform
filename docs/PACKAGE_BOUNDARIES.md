@@ -2,7 +2,7 @@
 
 Package ownership, dependency direction, and current status for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 15
+**Last updated:** Sprint 17
 
 ---
 
@@ -24,6 +24,8 @@ flowchart TB
 
     subgraph adapters [Adapter packages]
         PSDk[provider-sdk]
+        PAYPKG[payment]
+        ADF[adfpay-connector]
     end
 
     subgraph core [Core — domain and application contracts]
@@ -53,6 +55,9 @@ flowchart TB
     NE --> PSDk
 
     PSDk --> CORE
+    PAYPKG --> CORE
+    ADF --> PAYPKG
+    ADF --> CORE
 
     PSDk -.->|HTTP adapters| PAY
     PSDk -.->|HTTP adapters| IPTV
@@ -194,7 +199,52 @@ flowchart TB
 
 ---
 
-## packages/notification-engine
+## packages/payment
+
+**Owns**
+
+- Provider-neutral payment domain models (`PaymentConfirmation`, `PaymentStatus`, `Money`)
+- `PaymentRepository` port and in-memory implementation
+- Payment correlation and authorization policy
+- `PaymentProcessingService` and payment fulfillment composition root
+- In-memory order fulfillment authorization registry implementing core port
+
+**May depend on**
+
+- `@dap/core`
+
+**Must not depend on**
+
+- `@dap/adfpay-connector`
+- `@dap/woocommerce-connector`
+- Any `apps/*` package
+- HTTP frameworks or database implementations
+
+**Current status:** **Implemented** — Sprint 17 payment confirmation and authorization.
+
+---
+
+## packages/adfpay-connector
+
+**Owns**
+
+- AdfPay payload parser and fake authenticity verification boundary
+- `AdfPayPaymentGatewayAdapter` implementing `PaymentGatewayAdapter`
+- Test fixtures and integration tests
+
+**May depend on**
+
+- `@dap/payment`
+- `@dap/core`
+
+**Must not depend on**
+
+- Fulfillment orchestration beyond provider-neutral payment ports
+- Database or HTTP hosting
+
+**Current status:** **Implemented** — Sprint 17 first payment gateway adapter (fake verification; production deferred).
+
+---
 
 **Owns (planned)**
 

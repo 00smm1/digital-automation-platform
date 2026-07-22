@@ -193,6 +193,14 @@ Format: **Context → Decision → Consequences**
 
 **Consequences:** Future dashboards and APIs can consume safe audit records; durable persistence and replay remain deferred. See [ADR-014 detail](decisions/ADR-014-execution-run-lifecycle.md).
 
+### ADR-016 (Sprint 17): Payment confirmation and authorization
+
+**Context:** Commerce and payment events are separate external capabilities. Fulfillment must require explicit payment authorization and prevent cross-path double fulfillment.
+
+**Decision:** Add `@dap/payment` for provider-neutral payment models, repository, correlation, and authorization policy. Add `@dap/adfpay-connector` as the first payment gateway adapter. Introduce `OrderFulfillmentAuthorizationPort` in core to prevent duplicate fulfillment across commerce and payment paths.
+
+**Consequences:** Confirmed payments can reach the real fulfillment pipeline; non-confirmed payments cannot. Production AdfPay authenticity verification remains deferred. See [ADR-016 detail](decisions/ADR-016-payment-confirmation-and-authorization.md).
+
 ---
 
 ## Pending decisions

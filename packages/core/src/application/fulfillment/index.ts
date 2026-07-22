@@ -26,4 +26,5 @@ export type { DigitalFulfillmentServiceDependencies } from './digital-fulfillmen
 export {
   createDigitalFulfillmentStack,
   type DigitalFulfillmentStack,
+  type CreateDigitalFulfillmentStackOptions,
 } from './composition/create-digital-fulfillment-stack.js';
