@@ -38,3 +38,6 @@ vitest.config.ts.timestamp-*
 # Review artifacts
 *.diff
 *.patch
+sprint*-review.zip
+sprint*-review.diff
+sprint*-status.txt

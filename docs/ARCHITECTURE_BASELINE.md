@@ -1,8 +1,8 @@
 # Architecture Baseline
 
-Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 16**.  
+Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 17**.  
 **Owner:** Osama AL-Sharif  
-**Status:** Current baseline (Sprint 16)
+**Status:** Current baseline (Sprint 17)
 
 This document describes what exists in the repository today. For target-state design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -12,7 +12,7 @@ This document describes what exists in the repository today. For target-state de
 
 The platform automates digital commerce fulfillment — reserving inventory, invoking providers, running automation pipelines, and processing orders — independently of any single storefront or vendor SDK.
 
-After Sprint 16, all implemented business logic resides in `@dap/core` as provider-independent, in-memory TypeScript. The first digital fulfillment vertical slice is proven through `DigitalFulfillmentService` with fake adapters. Inbound integration is modeled through `InboundEventGateway` with adapter ports and in-memory idempotency. Execution-run lifecycle and safe audit records are tracked through `ExecutionRunCoordinator` without persistence infrastructure. The first real commerce connector (`@dap/woocommerce-connector`) maps WooCommerce order webhooks into provider-neutral envelopes and normalized events. Apps and engine packages are structural placeholders awaiting Phase 3 integrations.
+After Sprint 17, implemented business logic resides primarily in `@dap/core` and `@dap/payment` as provider-independent, in-memory TypeScript. The digital fulfillment vertical slice is proven through `DigitalFulfillmentService`, the inbound gateway, execution-run lifecycle, and payment confirmation with authorization gating. Inbound integration is modeled through `InboundEventGateway` with adapter ports and in-memory idempotency. Execution-run lifecycle and safe audit records are tracked through `ExecutionRunCoordinator` without persistence infrastructure. The first real commerce connector (`@dap/woocommerce-connector`) maps WooCommerce order webhooks into provider-neutral envelopes and normalized events. `@dap/adfpay-connector` maps AdfPay-shaped events into provider-neutral payment confirmations. Apps and engine packages are structural placeholders awaiting Phase 3 integrations. Production HTTP ingress, official AdfPay verification, and persistence remain deferred.
 
 ---
 
@@ -110,7 +110,41 @@ flowchart TB
     P --> DF[Digital Fulfillment]
 ```
 
-WooCommerce-specific code lives in `@dap/woocommerce-connector`. Real HTTP ingestion, WordPress plugin relay, AdfPay verification, and production WooCommerce connectivity are not complete.
+WooCommerce-specific code lives in `@dap/woocommerce-connector`. Real HTTP ingestion, WordPress plugin relay, and production WooCommerce connectivity are not complete.
+
+---
+
+## Payment confirmation and authorization (Sprint 17)
+
+```mermaid
+flowchart TB
+    PG[Payment Gateway Event] --> PC[Payment Confirmation]
+    PC --> OR[External Order Reference]
+    OR --> CR[CommerceOrderReadPort]
+    CR --> CO[Provider-Neutral Commerce Order]
+    CO --> AP[Payment Authorization Policy]
+    AP --> PFE[Payment-Authorized Fulfillment Event]
+    PFE --> GW[Inbound Gateway]
+    GW --> RUN[Execution Run]
+    RUN --> AO[Automation Orchestrator]
+    AO --> WP[Workflow Pipeline]
+    WP --> DF[Digital Fulfillment]
+    WC[WooCommerce Order Event] --> GW
+```
+
+Strategy C (ADR-016): WooCommerce paid events and confirmed external payments may both authorize fulfillment, but `OrderFulfillmentAuthorizationPort` ensures the same external order reference cannot be fulfilled twice across paths.
+
+**Not complete (deferred):**
+
+- production AdfPay connection
+- production webhook endpoint
+- official AdfPay field mapping
+- production secret management
+- settlement reconciliation
+- refunds / chargebacks / compensation
+- persistent database
+- real provider provisioning
+- real notification delivery
 
 ---
 
@@ -221,14 +255,17 @@ Application services receive dependencies via constructor injection (repositorie
 
 ## Package ownership
 
-| Package                    | Owns today                                                                     | Does not own                                 |
-| -------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------- |
-| `@dap/core`                | All domain models, application services, in-memory implementations, unit tests | HTTP, persistence, vendor SDKs               |
-| `@dap/automation-engine`   | Nothing (stub)                                                                 | Domain models (future: composition only)     |
-| `@dap/inventory-engine`    | Nothing (stub)                                                                 | Domain models (future: persistence adapters) |
-| `@dap/provider-sdk`        | Nothing (stub)                                                                 | Provider contracts (those live in core)      |
-| `@dap/notification-engine` | Nothing (stub)                                                                 | Notification domain (future)                 |
-| `apps/*`                   | Nothing (stubs)                                                                | Business rules                               |
+| Package                      | Owns today                                                                     | Does not own                                    |
+| ---------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `@dap/core`                  | All domain models, application services, in-memory implementations, unit tests | HTTP, persistence, vendor SDKs                  |
+| `@dap/woocommerce-connector` | WooCommerce envelope, signature verification, inbound adapter                  | Authorization policy, fulfillment orchestration |
+| `@dap/payment`               | Provider-neutral payment confirmation, authorization, correlation, repository  | Gateway parsing, HTTP, persistence              |
+| `@dap/adfpay-connector`      | AdfPay adapter, parser, fake signature verifier                                | Authorization policy, fulfillment orchestration |
+| `@dap/automation-engine`     | Nothing (stub)                                                                 | Domain models (future: composition only)        |
+| `@dap/inventory-engine`      | Nothing (stub)                                                                 | Domain models (future: persistence adapters)    |
+| `@dap/provider-sdk`          | Nothing (stub)                                                                 | Provider contracts (those live in core)         |
+| `@dap/notification-engine`   | Nothing (stub)                                                                 | Notification domain (future)                    |
+| `apps/*`                     | Nothing (stubs)                                                                | Business rules                                  |
 
 See [PACKAGE_BOUNDARIES.md](PACKAGE_BOUNDARIES.md) for detailed per-package rules.
 
@@ -236,21 +273,23 @@ See [PACKAGE_BOUNDARIES.md](PACKAGE_BOUNDARIES.md) for detailed per-package rule
 
 ## In-memory implementations
 
-| Concern                         | Implementation                            | Location                         |
-| ------------------------------- | ----------------------------------------- | -------------------------------- |
-| Event dispatch                  | `InMemoryEventBus`                        | `application/events/`            |
-| Inventory storage               | `InMemoryInventoryRepository`             | `domain/inventory/`              |
-| Provider instances              | `ProviderRegistry` + injected factories   | `domain/provider/`               |
-| Automation definitions          | `InMemoryAutomationDefinitionRepository`  | `domain/automation-definition/`  |
-| Workflow execution (tests)      | `InMemoryWorkflowExecutionPort`           | `application/orchestration/`     |
-| Pipeline step executors (tests) | `InMemoryPipelineStepExecutorRegistry`    | `application/workflow-pipeline/` |
-| Fulfillment adapters (tests)    | Fake provisioning, in-memory notification | `application/fulfillment/`       |
-| Idempotency store (tests)       | `InMemoryIdempotencyStore`                | `domain/inbound-event/`          |
-| Inbound adapter (tests)         | `FakeInboundEventAdapter`                 | `application/inbound-event/`     |
-| Execution run store (tests)     | `InMemoryExecutionRunRepository`          | `domain/execution-run/`          |
-| Clock (tests)                   | `FakeClock`                               | `shared/time/`                   |
-| Workflow step handlers          | `InMemoryWorkflowStepExecutorRegistry`    | `application/workflow/`          |
-| Workflow/order/automation state | Process memory only                       | Lost on restart                  |
+| Concern                         | Implementation                                  | Location                         |
+| ------------------------------- | ----------------------------------------------- | -------------------------------- |
+| Event dispatch                  | `InMemoryEventBus`                              | `application/events/`            |
+| Inventory storage               | `InMemoryInventoryRepository`                   | `domain/inventory/`              |
+| Provider instances              | `ProviderRegistry` + injected factories         | `domain/provider/`               |
+| Automation definitions          | `InMemoryAutomationDefinitionRepository`        | `domain/automation-definition/`  |
+| Workflow execution (tests)      | `InMemoryWorkflowExecutionPort`                 | `application/orchestration/`     |
+| Pipeline step executors (tests) | `InMemoryPipelineStepExecutorRegistry`          | `application/workflow-pipeline/` |
+| Fulfillment adapters (tests)    | Fake provisioning, in-memory notification       | `application/fulfillment/`       |
+| Idempotency store (tests)       | `InMemoryIdempotencyStore`                      | `domain/inbound-event/`          |
+| Inbound adapter (tests)         | `FakeInboundEventAdapter`                       | `application/inbound-event/`     |
+| Execution run store (tests)     | `InMemoryExecutionRunRepository`                | `domain/execution-run/`          |
+| Payment records (tests)         | `InMemoryPaymentRepository`                     | `@dap/payment`                   |
+| Order fulfillment authorization | `InMemoryOrderFulfillmentAuthorizationRegistry` | `@dap/payment`                   |
+| Clock (tests)                   | `FakeClock`                                     | `shared/time/`                   |
+| Workflow step handlers          | `InMemoryWorkflowStepExecutorRegistry`          | `application/workflow/`          |
+| Workflow/order/automation state | Process memory only                             | Lost on restart                  |
 
 All implementations are deterministic and suitable for unit testing without external services.
 

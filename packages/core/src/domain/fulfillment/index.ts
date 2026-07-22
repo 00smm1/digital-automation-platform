@@ -18,3 +18,5 @@ export {
   FulfillmentValidationError,
   FulfillmentExecutionError,
 } from './errors/fulfillment-errors.js';
+export type { OrderFulfillmentAuthorizationPort } from './order-fulfillment-authorization-port.js';
+export { OrderFulfillmentAuthorizationError } from './errors/order-fulfillment-authorization-errors.js';

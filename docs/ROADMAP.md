@@ -2,7 +2,7 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 16 (WooCommerce inbound adapter)
+**Last updated:** Sprint 17 (WooCommerce inbound adapter and payment confirmation)
 
 ## Overview
 
@@ -61,7 +61,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** In progress (Sprint 16 partial — WooCommerce inbound adapter)
+**Status:** In progress (Sprint 17 partial — WooCommerce inbound adapter and payment confirmation)
 
 **Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, orchestration, and durable run lifecycle — still in-memory where possible before persistence lands.
 
@@ -131,10 +131,18 @@ Phased delivery plan for the Digital Automation Platform.
 - `createWooCommerceInboundGatewayStack()` end-to-end composition root
 - 30+ adapter and gateway integration tests; [ADR-015](decisions/ADR-015-woocommerce-inbound-adapter.md)
 
+**Delivered (Sprint 17)**
+
+- `@dap/payment` provider-neutral payment domain, repository, correlation, and authorization policy
+- `@dap/adfpay-connector` first payment gateway adapter with fake authenticity verification
+- `PaymentProcessingService` end-to-end payment → authorization → inbound gateway → fulfillment flow
+- `OrderFulfillmentAuthorizationPort` preventing duplicate fulfillment across commerce and payment paths
+- Integer minor-unit `Money` representation; [ADR-016](decisions/ADR-016-payment-confirmation-and-authorization.md)
+
 **Remaining planned work**
 
 - HTTP/webhook ingress in `apps/api-server`
-- Additional vendor-specific inbound adapters (Salla, Shopify, payment gateways)
+- Additional vendor-specific inbound adapters (Salla, Shopify, additional payment gateways)
 - Persistence-backed idempotency store and execution run repository
 - Stale-claim recovery and run replay/resume
 - Unify `OrderProcessingService` path with fulfillment pipeline where appropriate
@@ -143,7 +151,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
 
-**Result:** Partially met. Sprints 13–16 prove in-memory event → match → pipeline → fulfillment with gateway idempotency, execution-run audit trails, and the first real WooCommerce inbound adapter. HTTP ingress and durable persistence remain outstanding.
+**Result:** Partially met. Sprints 13–17 prove in-memory event → match → pipeline → fulfillment with gateway idempotency, execution-run audit trails, the first real WooCommerce inbound adapter, and payment authorization. HTTP ingress, production gateway connectivity, and durable persistence remain outstanding.
 
 ---
 
