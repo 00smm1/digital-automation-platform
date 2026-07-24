@@ -86,6 +86,9 @@ importers:
         specifier: workspace:*
         version: link:../payment
     devDependencies:
+      '@dap/provider-runtime':
+        specifier: workspace:*
+        version: link:../provider-runtime
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1
@@ -106,6 +109,10 @@ importers:
         version: 3.2.7(@types/node@22.20.1)(yaml@2.9.0)
 
   packages/core:
+    dependencies:
+      '@dap/provider-runtime':
+        specifier: workspace:*
+        version: link:../provider-runtime
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -141,6 +148,21 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@dap/provider-runtime':
+        specifier: workspace:*
+        version: link:../provider-runtime
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(yaml@2.9.0)
+
+  packages/provider-runtime:
+    devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1
@@ -166,6 +188,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@dap/provider-runtime':
+        specifier: workspace:*
+        version: link:../provider-runtime
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1

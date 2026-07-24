@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createInboundGatewayStack } from '../inbound-event/composition/create-inbound-gateway-stack.js';
+import { createTestInboundGatewayStack } from '../../testing/create-test-inbound-gateway-stack.js';
 import {
   createValidExternalOrderPaidEnvelope,
   FakeInboundEventAdapter,
@@ -13,13 +13,13 @@ import { InMemoryExecutionRunRepository } from '../../domain/execution-run/in-me
 import { ExecutionRunRepositoryError } from '../../domain/execution-run/errors/execution-run-errors.js';
 import { FakeClock } from '../../shared/time/clock.js';
 import { createExecutionRun } from '../../domain/execution-run/execution-run.js';
-import { DigitalProductProvisioningError } from '../../domain/provisioning/errors/provisioning-errors.js';
 import { CustomerNotificationError } from '../../domain/notification/errors/notification-errors.js';
 import { InboundEventNormalizationError } from '../../domain/inbound-event/errors/inbound-event-errors.js';
 import { PlatformEventOrchestrator } from '../orchestration/platform-event-orchestrator.js';
+import { SENTINEL_FAKE_PROVIDER_SECRET } from '@dap/provider-runtime';
 
 const processEnvelope = async (
-  stack: Awaited<ReturnType<typeof createInboundGatewayStack>>,
+  stack: Awaited<ReturnType<typeof createTestInboundGatewayStack>>,
   overrides: Parameters<typeof createValidExternalOrderPaidEnvelope>[0] = {},
 ) => {
   const envelope = createValidExternalOrderPaidEnvelope(overrides);
@@ -28,7 +28,7 @@ const processEnvelope = async (
 
 describe('Execution run lifecycle end-to-end', () => {
   it('creates exactly one execution run for a successful inbound event', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await processEnvelope(stack);
 
     expect(result.status).toBe('processed');
@@ -37,7 +37,7 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('records received, processing, and completed lifecycle states', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await processEnvelope(stack);
     const run = await stack.executionRunRepository.findById(result.executionRunId!);
 
@@ -48,7 +48,7 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('does not create a second execution run for duplicate inbound events', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const envelope = createValidExternalOrderPaidEnvelope();
 
     await stack.inboundGateway.process(envelope, stack.inboundAdapter);
@@ -59,7 +59,7 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('does not create an execution run when normalization fails', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     stack.inboundAdapter.configureError(
       new InboundEventNormalizationError('Configured normalization failure.', 'CONFIGURED_FAILURE'),
     );
@@ -70,7 +70,7 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('marks the execution run rejected for business validation failures', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await processEnvelope(stack, {
       payload: {
         orderId: 'order-1001',
@@ -90,7 +90,7 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('marks the execution run failed when inventory reservation fails', async () => {
-    const stack = await createInboundGatewayStack({ inventoryQuantity: 0 });
+    const stack = await createTestInboundGatewayStack({ inventoryQuantity: 0 });
     const result = await processEnvelope(stack);
 
     expect(result.executionRunStatus).toBe('failed');
@@ -99,13 +99,8 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('preserves earlier successful progress when provisioning fails', async () => {
-    const stack = await createInboundGatewayStack();
-    stack.provisioningAdapter.configureError(
-      new DigitalProductProvisioningError(
-        'Provisioning provider unavailable.',
-        'PROVISIONING_FAILED',
-      ),
-    );
+    const stack = await createTestInboundGatewayStack();
+    stack.fakeProviderAdapter.setMode('rejected');
 
     const result = await processEnvelope(stack);
     const audit = await stack.executionRunCoordinator.getAuditRecord(result.executionRunId!);
@@ -115,16 +110,18 @@ describe('Execution run lifecycle end-to-end', () => {
       'Validate Order',
       'Reserve Inventory',
       'Provision Digital Product',
+      'Consume Reservation',
       'Notify Customer',
     ]);
     expect(audit?.stepSummaries[0]?.status).toBe('completed');
     expect(audit?.stepSummaries[1]?.status).toBe('completed');
     expect(audit?.stepSummaries[2]?.status).toBe('failed');
     expect(audit?.stepSummaries[3]?.status).toBe('skipped');
+    expect(audit?.stepSummaries[4]?.status).toBe('skipped');
   });
 
   it('records provisioning success and notification failure separately', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     stack.notificationAdapter.configureError(
       new CustomerNotificationError('Notification delivery failed.', 'NOTIFICATION_FAILED'),
     );
@@ -133,12 +130,14 @@ describe('Execution run lifecycle end-to-end', () => {
     const audit = await stack.executionRunCoordinator.getAuditRecord(result.executionRunId!);
 
     expect(audit?.stepSummaries[2]?.status).toBe('completed');
-    expect(audit?.stepSummaries[3]?.status).toBe('failed');
+    expect(audit?.stepSummaries[3]?.status).toBe('completed');
+    expect(audit?.stepSummaries[4]?.status).toBe('failed');
   });
 
   it('marks the run failed for unexpected provisioning exceptions with safe messaging', async () => {
-    const stack = await createInboundGatewayStack();
-    stack.provisioningAdapter.configureException(new Error('runtime exploded'));
+    const stack = await createTestInboundGatewayStack();
+    stack.fakeProviderAdapter.setMode('throw');
+    stack.fakeProviderAdapter.setConfiguredException(new Error('runtime exploded'));
 
     const result = await processEnvelope(stack);
     const audit = await stack.executionRunCoordinator.getAuditRecord(result.executionRunId!);
@@ -148,7 +147,9 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('records matched automation and workflow references', async () => {
-    const stack = await createInboundGatewayStack({ automationId: 'digital-premium-fulfillment' });
+    const stack = await createTestInboundGatewayStack({
+      automationId: 'digital-premium-fulfillment',
+    });
     const result = await processEnvelope(stack);
     const audit = await stack.executionRunCoordinator.getAuditRecord(result.executionRunId!);
 
@@ -157,7 +158,7 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('records pipeline step order correctly', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await processEnvelope(stack);
     const audit = await stack.executionRunCoordinator.getAuditRecord(result.executionRunId!);
 
@@ -165,13 +166,14 @@ describe('Execution run lifecycle end-to-end', () => {
       'Validate Order',
       'Reserve Inventory',
       'Provision Digital Product',
+      'Consume Reservation',
       'Notify Customer',
     ]);
-    expect(audit?.stepSummaries.map((step) => step.executionOrder)).toEqual([1, 2, 3, 4]);
+    expect(audit?.stepSummaries.map((step) => step.executionOrder)).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('marks later steps skipped after a fatal earlier pipeline failure', async () => {
-    const stack = await createInboundGatewayStack({ inventoryQuantity: 0 });
+    const stack = await createTestInboundGatewayStack({ inventoryQuantity: 0 });
     const result = await processEnvelope(stack);
     const audit = await stack.executionRunCoordinator.getAuditRecord(result.executionRunId!);
 
@@ -179,6 +181,7 @@ describe('Execution run lifecycle end-to-end', () => {
     expect(audit?.stepSummaries[1]?.status).toBe('failed');
     expect(audit?.stepSummaries[2]?.status).toBe('skipped');
     expect(audit?.stepSummaries[3]?.status).toBe('skipped');
+    expect(audit?.stepSummaries[4]?.status).toBe('skipped');
   });
 
   it('returns typed failure for invalid lifecycle transitions', async () => {
@@ -222,7 +225,7 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('prevents terminal runs from returning to processing', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await processEnvelope(stack);
     const restart = await stack.executionRunCoordinator.startProcessing(result.executionRunId!);
 
@@ -284,7 +287,7 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('excludes sensitive provisioning secrets from audit outputs', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await processEnvelope(stack);
     const audit = await stack.executionRunCoordinator.getAuditRecord(result.executionRunId!);
     const run = await stack.executionRunRepository.findById(result.executionRunId!);
@@ -296,13 +299,14 @@ describe('Execution run lifecycle end-to-end', () => {
         ?.safeOutcomeMetadata,
     ).toEqual(
       expect.objectContaining({
-        delivery: expect.objectContaining({ secret: '[REDACTED]' }),
+        externalProvisioningReference: expect.any(String),
       }),
     );
+    expect(serialized).not.toContain(SENTINEL_FAKE_PROVIDER_SECRET);
   });
 
   it('excludes raw inbound payload values from execution records', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const secret = 'raw-payload-secret-value';
     const result = await stack.inboundGateway.process(
       createExternalEventEnvelope({
@@ -331,7 +335,7 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('terminates processing when repository writes fail during lifecycle recording', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     stack.executionRunRepository.configureSaveFailure(
       new ExecutionRunRepositoryError('Configured repository save failure.', 'SAVE_FAILED'),
     );
@@ -344,7 +348,7 @@ describe('Execution run lifecycle end-to-end', () => {
   });
 
   it('uses inbound gateway, idempotency, orchestrator, pipeline, and lifecycle together', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await processEnvelope(stack);
 
     expect(result.status).toBe('processed');

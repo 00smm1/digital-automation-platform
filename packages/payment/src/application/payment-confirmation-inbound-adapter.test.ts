@@ -10,6 +10,7 @@ import { createPaymentSource } from '../domain/payment-source.js';
 import { createPaymentAuthorizedFulfillmentEvent } from './payment-authorized-fulfillment-event.js';
 import { createCommerceOrderRecord } from '../domain/commerce-order-record.js';
 import { Result } from '@dap/core';
+import { createTestProviderRuntimeStack } from '@dap/provider-runtime';
 import { createPaymentFulfillmentGatewayStack } from '../composition/create-payment-fulfillment-gateway-stack.js';
 import type { PaymentGatewayAdapter } from './ports/payment-gateway-adapter.js';
 import { PaymentParserFailure } from '../domain/errors/payment-errors.js';
@@ -49,6 +50,18 @@ const createEnvelope = (payload: unknown) =>
     metadata: {},
   });
 
+const createTestPaymentFulfillmentGatewayStack = async (
+  options: Parameters<typeof createPaymentFulfillmentGatewayStack>[0],
+) => {
+  const testProviderRuntime = createTestProviderRuntimeStack();
+
+  return createPaymentFulfillmentGatewayStack({
+    ...options,
+    providerRuntimePort: testProviderRuntime.providerRuntime,
+    fakeProviderAdapter: testProviderRuntime.fakeAdapter,
+  });
+};
+
 describe('PaymentConfirmationInboundAdapter confirmed-status boundary', () => {
   const adapter = new PaymentConfirmationInboundAdapter();
 
@@ -79,7 +92,7 @@ describe('PaymentConfirmationInboundAdapter confirmed-status boundary', () => {
   );
 
   it('rejected statuses invoke no fulfillment pipeline', async () => {
-    const stack = await createPaymentFulfillmentGatewayStack({
+    const stack = await createTestPaymentFulfillmentGatewayStack({
       productReference: '99001',
       paymentGatewayAdapter: fakePaymentGatewayAdapter,
     });
@@ -92,7 +105,7 @@ describe('PaymentConfirmationInboundAdapter confirmed-status boundary', () => {
     expect(result.status).toBe('rejected');
     expect(result.failureCode).toBe('AUTHORIZATION_REJECTED');
     expect(stack.executionRunRepository.getAllRuns()).toHaveLength(0);
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(0);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(0);
     expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(0);
   });
 });
@@ -166,7 +179,7 @@ describe('PaymentConfirmationInboundAdapter order reference consistency', () => 
   });
 
   it('mismatched references create no fulfillment side effects', async () => {
-    const stack = await createPaymentFulfillmentGatewayStack({
+    const stack = await createTestPaymentFulfillmentGatewayStack({
       productReference: '99001',
       paymentGatewayAdapter: fakePaymentGatewayAdapter,
     });
@@ -186,6 +199,6 @@ describe('PaymentConfirmationInboundAdapter order reference consistency', () => 
     expect(result.status).toBe('rejected');
     expect(result.failureCode).toBe('CORRELATION_FAILED');
     expect(stack.executionRunRepository.getAllRuns()).toHaveLength(0);
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(0);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(0);
   });
 });

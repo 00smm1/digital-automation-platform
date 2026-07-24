@@ -2,22 +2,23 @@ import { createPipelineStepExecutionResult } from '../../../domain/workflow-pipe
 import type { PipelineStepExecutor } from '../pipeline-step-executor.js';
 import type { InventoryReservationPort } from '../../fulfillment/ports/inventory-reservation-port.js';
 import { DIGITAL_FULFILLMENT_PIPELINE_STEP_TYPES } from '../../fulfillment/fulfillment-pipeline-step-types.js';
-import { createStepTimestamps, readFulfillmentPipelineInput } from './fulfillment-step-utils.js';
+import type { Clock } from '../../../shared/time/clock.js';
+import {
+  createStepTimestamps,
+  readFulfillmentPipelineInput,
+  readExecutionRunReference,
+} from './fulfillment-step-utils.js';
 
 export const createReserveInventoryStepExecutor = (
   inventoryReservationPort: InventoryReservationPort,
+  clock: Clock,
 ): PipelineStepExecutor => {
   return async (context, step) => {
-    const { startedAt, completedAt } = createStepTimestamps();
+    const { startedAt, completedAt } = createStepTimestamps(clock);
     const input = readFulfillmentPipelineInput(context);
+    const ownerReference = readExecutionRunReference(context);
 
-    const reservationResult = await inventoryReservationPort.reserve({
-      productReference: input.productReference,
-      orderItemReference: input.externalOrderReference,
-      quantity: input.quantity,
-    });
-
-    if (!reservationResult.ok) {
+    if (ownerReference === undefined) {
       return createPipelineStepExecutionResult({
         stepId: step.id,
         stepName: step.name,
@@ -25,9 +26,34 @@ export const createReserveInventoryStepExecutor = (
         status: 'failed',
         startedAt,
         completedAt,
-        failureReason: reservationResult.error.message,
+        failureReason: 'Execution run reference is required for inventory reservation.',
         output: {
-          failureCode: reservationResult.error.code,
+          failureCode: 'missing-execution-run-reference',
+        },
+      });
+    }
+
+    const reservationResult = await inventoryReservationPort.reserve({
+      inventoryItemReference: input.productReference,
+      ownerReference,
+      quantity: input.quantity,
+      externalOrderReference: input.externalOrderReference,
+    });
+
+    if (
+      reservationResult.kind !== 'reservation-created' &&
+      reservationResult.kind !== 'reservation-duplicate'
+    ) {
+      return createPipelineStepExecutionResult({
+        stepId: step.id,
+        stepName: step.name,
+        stepType: DIGITAL_FULFILLMENT_PIPELINE_STEP_TYPES.RESERVE_INVENTORY,
+        status: 'failed',
+        startedAt,
+        completedAt,
+        failureReason: 'Inventory reservation failed.',
+        output: {
+          failureCode: reservationResult.kind,
           productReference: input.productReference,
         },
       });
@@ -41,9 +67,11 @@ export const createReserveInventoryStepExecutor = (
       startedAt,
       completedAt,
       output: {
-        inventoryItemIds: reservationResult.value.inventoryItemIds,
-        productReference: reservationResult.value.productReference,
-        reservedQuantity: reservationResult.value.reservedQuantity,
+        reservationReference: reservationResult.reservationReference,
+        inventoryItemReference: reservationResult.inventoryItemReference,
+        quantity: reservationResult.quantity,
+        status: reservationResult.status,
+        expiresAt: reservationResult.expiresAt.toISOString(),
       },
     });
   };

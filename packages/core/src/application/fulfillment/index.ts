@@ -1,12 +1,12 @@
 export type {
   InventoryReservationPort,
+  InventoryReservationLifecyclePort,
   InventoryReservationRequest,
-  InventoryReservationResult,
+  InventoryReservationStepOutput,
+  InventoryReservationFailure,
 } from './ports/inventory-reservation-port.js';
-export type { DigitalProductProvisioningPort } from './ports/digital-product-provisioning-port.js';
 export type { CustomerNotificationPort } from './ports/customer-notification-port.js';
-export { InventoryReservationAdapter } from './adapters/inventory-reservation-adapter.js';
-export { FakeDigitalProductProvisioningAdapter } from './adapters/fake-digital-product-provisioning-adapter.js';
+export { QuantityInventoryReservationAdapter } from './adapters/quantity-inventory-reservation-adapter.js';
 export { InMemoryCustomerNotificationAdapter } from './adapters/in-memory-customer-notification-adapter.js';
 export { FulfillmentRequestValidator } from './fulfillment-request-validator.js';
 export {

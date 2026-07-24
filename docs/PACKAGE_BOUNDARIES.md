@@ -2,7 +2,7 @@
 
 Package ownership, dependency direction, and current status for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 17
+**Last updated:** Sprint 19
 
 ---
 
@@ -23,6 +23,7 @@ flowchart TB
     end
 
     subgraph adapters [Adapter packages]
+        PRRT[provider-runtime]
         PSDk[provider-sdk]
         WCC[woocommerce-connector]
         PAYPKG[payment]
@@ -51,11 +52,14 @@ flowchart TB
     IE --> CORE
     NE --> CORE
 
+    CORE --> PRRT
+
     AE --> PSDk
     IE --> PSDk
     NE --> PSDk
 
     PSDk --> CORE
+    PSDk --> PRRT
     WCC --> CORE
     PAYPKG --> CORE
     ADF --> PAYPKG
@@ -74,8 +78,11 @@ flowchart TB
 
 **Rules illustrated:**
 
-- Dependency flows **downward** — apps → engines → core.
-- `provider-sdk` implements vendor adapters against **core provider contracts**.
+- Dependency flows **downward** — apps → engines → core → provider-runtime (where needed).
+- `@dap/core` depends on `@dap/provider-runtime` for provisioning execution ports.
+- `@dap/provider-runtime` does **not** depend on `@dap/core`.
+- Workflow provisioning steps depend on `ProviderRuntimePort`, not registry internals or fake adapters directly.
+- `provider-sdk` implements vendor adapters against **provider-runtime adapter contracts**.
 - Core never imports from apps, engines, or vendor SDKs.
 - Storefront connectors (WordPress) talk to `api-server`, not directly to providers.
 
@@ -108,6 +115,7 @@ flowchart TB
 **May depend on**
 
 - Internal modules within `@dap/core` only (shared ← domain ← application)
+- `@dap/provider-runtime` (provisioning workflow step uses `ProviderRuntimePort`)
 - Node.js built-ins where needed (e.g. `node:timers/promises` for retry delays)
 
 **Must not depend on**
@@ -117,9 +125,50 @@ flowchart TB
 - HTTP clients, ORMs, queue libraries, or vendor SDKs
 - WordPress, WooCommerce, or storefront-specific types
 
-**Current status:** **Implemented** — all business logic through Sprint 15 lives here, including inbound gateway, idempotency, and execution-run lifecycle contracts. WooCommerce-specific inbound code lives in `@dap/woocommerce-connector`.
+**Current status:** **Implemented** — domain and application contracts through Sprint 19, including inbound gateway, idempotency, execution-run lifecycle, quantity-based inventory reservation lifecycle, provider runtime integration for provisioning, and fulfillment pipeline integration. WooCommerce-specific inbound code lives in `@dap/woocommerce-connector`. Payment confirmation lives in `@dap/payment`. Provider execution lives in `@dap/provider-runtime`.
+
+**Inventory reservation (Sprint 18) — allowed in `@dap/core`:**
+
+- `QuantityInventoryRecord`, `InventoryReservation`, reservation state transitions
+- `InventoryReservationRepository`, `InventoryReservationService`, reservation policy
+- Safe typed reservation results and workflow step integration
+
+**Forbidden in `@dap/core` inventory:**
+
+- WooCommerce / AdfPay parsing, HTTP handling, SQL, Redis, schedulers, provider adapter HTTP, notifications, raw secret storage
 
 **Planned responsibility:** Remain the canonical home for domain and application **contracts**. Infrastructure adapters will implement core repository and provider interfaces in future phases without moving domain models out of core.
+
+---
+
+## packages/provider-runtime
+
+**Owns**
+
+- Provider descriptors, capabilities, status, health, and priority models
+- `ProviderRegistry`, `ProviderSelectionPolicy`, and `ProviderRuntime` orchestration
+- Provider execution request/context/result contracts and safe evidence projection
+- Timeout policy and `TimeoutExecutor` boundary
+- `CredentialResolverPort` contract and in-memory implementation
+- `ProviderAdapter` port; fake adapter for tests
+- Composition root for test and local wiring
+
+**May depend on**
+
+- Internal modules within `@dap/provider-runtime` only (shared ← domain ← application ← infrastructure)
+- Node.js built-ins (e.g. `node:timers/promises` for timer timeout executor)
+
+**Must not depend on**
+
+- `@dap/core`
+- Any `apps/*` package
+- Any engine package
+- `@dap/woocommerce-connector`, `@dap/adfpay-connector`, `@dap/payment`
+- HTTP clients, ORMs, queue libraries, or vendor SDKs in domain/application layers
+
+**Current status:** **Implemented** — Sprint 19 provider-neutral runtime with in-memory registry and credentials. See [ADR-018](decisions/ADR-018-provider-runtime-and-provisioning-execution.md).
+
+**Planned responsibility:** Remain the canonical home for provider discovery, selection, and execution boundaries. Vendor HTTP adapters register via `ProviderAdapter` at composition time (future `provider-sdk`). Workflow steps consume `ProviderRuntimePort` only.
 
 ---
 
@@ -186,18 +235,19 @@ flowchart TB
 
 **May depend on (planned)**
 
-- `@dap/core` (provider contracts only)
+- `@dap/core`
+- `@dap/provider-runtime` (adapter registration and execution)
 - Vendor HTTP libraries (in adapter layer only)
 
 **Must not depend on**
 
 - Any `apps/*` package
 - WordPress or WooCommerce libraries
-- Domain models outside core provider contracts
+- Domain models outside provider-runtime adapter contracts
 
-**Current status:** **Stub** — provider **contracts** (`Provider`, `ProviderRegistry`, capabilities) live in `@dap/core`.
+**Current status:** **Stub** — legacy provider **contracts** (`Provider`, `ProviderRegistry`, capabilities) remain in `@dap/core` from earlier sprints; Sprint 19 execution contracts live in `@dap/provider-runtime`.
 
-**Planned responsibility:** Implement `Provider` and `ProviderFactory` for each vendor. Re-export or register adapters; never duplicate capability definitions.
+**Planned responsibility:** Implement `ProviderAdapter` for each vendor and register with provider-runtime registry. Re-export or register adapters; never duplicate capability or descriptor definitions.
 
 ---
 
@@ -381,13 +431,13 @@ flowchart TB
 
 ## Core vs engine clarification
 
-| Concern              | `@dap/core`                  | Engine packages               |
-| -------------------- | ---------------------------- | ----------------------------- |
-| Domain models        | Owns                         | Composes, never redefines     |
-| Application services | Owns in-memory orchestration | Wires persistence and runtime |
-| Provider contracts   | Owns interfaces              | Owns vendor adapters          |
-| Persistence          | In-memory only               | Owns DB/queue implementations |
-| Public API for apps  | Exports types and services   | Exports composed modules      |
+| Concern              | `@dap/core`                                              | Engine packages               |
+| -------------------- | -------------------------------------------------------- | ----------------------------- |
+| Domain models        | Owns                                                     | Composes, never redefines     |
+| Application services | Owns in-memory orchestration                             | Wires persistence and runtime |
+| Provider contracts   | Legacy interfaces in core; execution in provider-runtime | Owns vendor adapters          |
+| Persistence          | In-memory only                                           | Owns DB/queue implementations |
+| Public API for apps  | Exports types and services                               | Exports composed modules      |
 
 See [decisions/ADR-008-core-and-engine-boundaries.md](decisions/ADR-008-core-and-engine-boundaries.md).
 

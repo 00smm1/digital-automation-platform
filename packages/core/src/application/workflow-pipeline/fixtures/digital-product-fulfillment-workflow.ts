@@ -30,6 +30,12 @@ export const createDigitalProductFulfillmentWorkflowDefinition = (): WorkflowDef
         payload: {},
       }),
       createPipelineStepDefinition({
+        id: createIdentifier('PipelineStep', 'consume-reservation'),
+        name: 'Consume Reservation',
+        stepType: DIGITAL_FULFILLMENT_PIPELINE_STEP_TYPES.CONSUME_RESERVATION,
+        payload: {},
+      }),
+      createPipelineStepDefinition({
         id: createIdentifier('PipelineStep', 'notify-customer'),
         name: 'Notify Customer',
         stepType: DIGITAL_FULFILLMENT_PIPELINE_STEP_TYPES.NOTIFY_CUSTOMER,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createExternalEventEnvelope } from '@dap/core';
+import { createTestProviderRuntimeStack } from '@dap/provider-runtime';
 
 import { createWooCommerceInboundGatewayStack } from '../composition/create-woocommerce-inbound-gateway-stack.js';
 import {
@@ -18,8 +19,20 @@ const assertSensitiveValuesAbsent = (serialized: string): void => {
   expect(serialized).not.toContain('SENTINEL_SIGNATURE_VALUE');
 };
 
+const createTestWooCommerceInboundGatewayStack = async (
+  options: Parameters<typeof createWooCommerceInboundGatewayStack>[0] = {},
+) => {
+  const testProviderRuntime = createTestProviderRuntimeStack();
+
+  return createWooCommerceInboundGatewayStack({
+    ...options,
+    providerRuntimePort: testProviderRuntime.providerRuntime,
+    fakeProviderAdapter: testProviderRuntime.fakeAdapter,
+  });
+};
+
 const processSignedWebhook = async (
-  stack: Awaited<ReturnType<typeof createWooCommerceInboundGatewayStack>>,
+  stack: Awaited<ReturnType<typeof createTestWooCommerceInboundGatewayStack>>,
   options: Parameters<typeof createSignedWooCommerceWebhookInput>[0] = {},
 ) => {
   const input = createSignedWooCommerceWebhookInput(options);
@@ -39,7 +52,7 @@ const processSignedWebhook = async (
 
 describe('WooCommerce inbound gateway integration', () => {
   it('processes a valid processing order through the full fulfillment pipeline', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
     const { gatewayResult } = await processSignedWebhook(stack, { status: 'processing' });
@@ -47,11 +60,11 @@ describe('WooCommerce inbound gateway integration', () => {
     expect(gatewayResult?.status).toBe('processed');
     expect(gatewayResult?.orchestrationResult?.overallStatus).toBe('succeeded');
     expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(1);
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
   });
 
   it('processes a valid completed order through the full fulfillment pipeline', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
     const { gatewayResult } = await processSignedWebhook(stack, { status: 'completed' });
@@ -61,7 +74,7 @@ describe('WooCommerce inbound gateway integration', () => {
   });
 
   it('rejects invalid signatures before normalization', async () => {
-    const stack = await createWooCommerceInboundGatewayStack();
+    const stack = await createTestWooCommerceInboundGatewayStack();
     stack.signatureVerifier.configureValid(false);
     const input = createSignedWooCommerceWebhookInput();
     const envelopeResult = stack.envelopeFactory.create({
@@ -81,7 +94,7 @@ describe('WooCommerce inbound gateway integration', () => {
   });
 
   it('rejects malformed payloads from the envelope factory', async () => {
-    const stack = await createWooCommerceInboundGatewayStack();
+    const stack = await createTestWooCommerceInboundGatewayStack();
     const input = createSignedWooCommerceWebhookInput();
     const envelopeResult = stack.envelopeFactory.create({
       ...input,
@@ -96,7 +109,7 @@ describe('WooCommerce inbound gateway integration', () => {
   });
 
   it('rejects unsupported webhook topics at the envelope factory', async () => {
-    const stack = await createWooCommerceInboundGatewayStack();
+    const stack = await createTestWooCommerceInboundGatewayStack();
     const input = createSignedWooCommerceWebhookInput({ topic: 'customer.updated' });
     const envelopeResult = stack.envelopeFactory.create(input);
 
@@ -110,7 +123,7 @@ describe('WooCommerce inbound gateway integration', () => {
   it.each(['pending', 'on-hold', 'failed', 'cancelled', 'refunded'])(
     'does not fulfill unsupported order status %s',
     async (status) => {
-      const stack = await createWooCommerceInboundGatewayStack({
+      const stack = await createTestWooCommerceInboundGatewayStack({
         productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
       });
       const { gatewayResult } = await processSignedWebhook(stack, { status });
@@ -123,7 +136,7 @@ describe('WooCommerce inbound gateway integration', () => {
   );
 
   it('executes fulfillment once for duplicate WooCommerce deliveries', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
     const input = createSignedWooCommerceWebhookInput({ deliveryId: 'delivery-dup-001' });
@@ -146,7 +159,7 @@ describe('WooCommerce inbound gateway integration', () => {
   });
 
   it('processes the same order again when a distinct valid event identity is supplied', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
 
@@ -167,7 +180,7 @@ describe('WooCommerce inbound gateway integration', () => {
   });
 
   it('keeps webhook secrets and signatures out of gateway failures and audit records', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
     const { gatewayResult } = await processSignedWebhook(stack, { status: 'pending' });
@@ -183,7 +196,7 @@ describe('WooCommerce inbound gateway integration', () => {
   });
 
   it('keeps raw payload out of execution audit records', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
     const { gatewayResult } = await processSignedWebhook(stack);
@@ -211,7 +224,7 @@ describe('WooCommerce inbound gateway integration', () => {
   });
 
   it('uses the real inbound gateway, idempotency, lifecycle, matcher, orchestrator, and pipeline', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
     const { gatewayResult } = await processSignedWebhook(stack, { deliveryId: 'delivery-e2e-001' });
@@ -228,13 +241,14 @@ describe('WooCommerce inbound gateway integration', () => {
       'Validate Order',
       'Reserve Inventory',
       'Provision Digital Product',
+      'Consume Reservation',
       'Notify Customer',
     ]);
     expect(stack.idempotencyStore.getAllRecords()).toHaveLength(1);
   });
 
   it('does not leak WooCommerce-specific models into normalized platform event contracts', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
     const input = createSignedWooCommerceWebhookInput();
@@ -258,7 +272,7 @@ describe('WooCommerce inbound gateway integration', () => {
   });
 
   it('keeps envelope and parsed models immutable during processing', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
     const input = createSignedWooCommerceWebhookInput({ deliveryId: 'delivery-immutable-001' });
@@ -277,7 +291,7 @@ describe('WooCommerce inbound gateway integration', () => {
   });
 
   it('rejects gateway processing when envelope payload is replaced with malformed data', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
     const envelope = createExternalEventEnvelope({
@@ -298,7 +312,7 @@ describe('WooCommerce inbound gateway integration', () => {
   });
 
   it('rejects multiple line items before fulfillment', async () => {
-    const stack = await createWooCommerceInboundGatewayStack({
+    const stack = await createTestWooCommerceInboundGatewayStack({
       productReference: String(TEST_WOOCOMMERCE_PRODUCT_ID),
     });
     const { gatewayResult } = await processSignedWebhook(stack, {

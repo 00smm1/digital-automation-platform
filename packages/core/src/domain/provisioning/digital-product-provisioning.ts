@@ -5,7 +5,8 @@ export type DigitalProductProvisioningRequest = {
   readonly customerReference: string;
   readonly productReference: string;
   readonly quantity: number;
-  readonly inventoryItemId?: string;
+  readonly inventoryItemReference: string;
+  readonly reservationReference: string;
   readonly metadata: Readonly<Record<string, unknown>>;
 };
 
@@ -21,7 +22,8 @@ export const createDigitalProductProvisioningRequest = (
   customerReference: params.customerReference,
   productReference: params.productReference,
   quantity: params.quantity,
-  inventoryItemId: params.inventoryItemId,
+  inventoryItemReference: params.inventoryItemReference,
+  reservationReference: params.reservationReference,
   metadata: { ...params.metadata },
 });
 

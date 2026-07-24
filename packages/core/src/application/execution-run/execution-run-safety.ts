@@ -59,7 +59,7 @@ export const sanitizeStepFailureReason = (params: {
   failureCode?: string;
   failureReason?: string;
 }): string | undefined => {
-  if (params.failureCode === 'PROVISIONING_EXCEPTION') {
+  if (params.failureCode === 'PROVIDER_EXECUTION_FAILED') {
     return 'Digital product provisioning failed unexpectedly.';
   }
 
