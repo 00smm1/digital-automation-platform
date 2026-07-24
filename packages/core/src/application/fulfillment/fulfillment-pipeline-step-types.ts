@@ -2,6 +2,7 @@ export const DIGITAL_FULFILLMENT_PIPELINE_STEP_TYPES = {
   VALIDATE_ORDER: 'validate-order',
   RESERVE_INVENTORY: 'reserve-inventory',
   PROVISION_DIGITAL_PRODUCT: 'provision-digital-product',
+  CONSUME_RESERVATION: 'consume-reservation',
   NOTIFY_CUSTOMER: 'notify-customer',
 } as const;
 

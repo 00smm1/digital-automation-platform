@@ -8,8 +8,25 @@ import {
   TEST_ADFPAY_PRODUCT_REFERENCE,
   TEST_ADFPAY_SIGNATURE,
 } from '../fixtures/adfpay-payment-fixtures.js';
+import { createTestProviderRuntimeStack } from '@dap/provider-runtime';
 import { createPaymentFulfillmentGatewayStack } from '@dap/payment';
 import type { PaymentFulfillmentGatewayStack } from '@dap/payment';
+import { computeAvailableQuantity, createInventoryItemReference } from '@dap/core';
+
+export const getAvailableInventoryQuantity = async (
+  stack: PaymentFulfillmentGatewayStack,
+  productReference: string,
+): Promise<number> => {
+  const item = await stack.inventoryReservationRepository.findInventoryItemByReference(
+    createInventoryItemReference(productReference),
+  );
+
+  if (item === null) {
+    return 0;
+  }
+
+  return computeAvailableQuantity(item);
+};
 
 export const SENTINEL_GATEWAY_SECRET = TEST_ADFPAY_GATEWAY_SECRET;
 export const SENTINEL_SIGNATURE = TEST_ADFPAY_SIGNATURE;
@@ -33,10 +50,22 @@ export const assertSentinelsAbsent = (serialized: string): void => {
   }
 };
 
+export const createTestPaymentFulfillmentGatewayStack = async (
+  options: Parameters<typeof createPaymentFulfillmentGatewayStack>[0],
+): Promise<PaymentFulfillmentGatewayStack> => {
+  const testProviderRuntime = createTestProviderRuntimeStack();
+
+  return createPaymentFulfillmentGatewayStack({
+    ...options,
+    providerRuntimePort: testProviderRuntime.providerRuntime,
+    fakeProviderAdapter: testProviderRuntime.fakeAdapter,
+  });
+};
+
 export const createScenarioStack = async (
   verifier = new FakeAdfPaySignatureVerifier(),
 ): Promise<PaymentFulfillmentGatewayStack> =>
-  createPaymentFulfillmentGatewayStack({
+  createTestPaymentFulfillmentGatewayStack({
     productReference: TEST_ADFPAY_PRODUCT_REFERENCE,
     paymentGatewayAdapter: new AdfPayPaymentGatewayAdapter({ signatureVerifier: verifier }),
   });

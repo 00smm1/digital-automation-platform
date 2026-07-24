@@ -7,7 +7,7 @@ import {
   TEST_ADFPAY_PRODUCT_REFERENCE,
 } from '../fixtures/adfpay-payment-fixtures.js';
 import {
-  createPaymentFulfillmentGatewayStack,
+  createTestPaymentFulfillmentGatewayStack,
   createCommerceOrderRecord,
   createMoney,
   InMemoryCommerceOrderReadPort,
@@ -18,7 +18,9 @@ import { createValidExternalOrderPaidEnvelope, FakeInboundEventAdapter } from '@
 import {
   ALL_SENTINELS,
   assertSentinelsAbsent,
+  createTestPaymentFulfillmentGatewayStack,
   createScenarioStack,
+  getAvailableInventoryQuantity,
 } from '../testing/scenario-test-helpers.js';
 
 describe('Sprint 17 revision — fulfillment data source', () => {
@@ -35,7 +37,7 @@ describe('Sprint 17 revision — fulfillment data source', () => {
       }),
     );
 
-    const stack = await createPaymentFulfillmentGatewayStack({
+    const stack = await createTestPaymentFulfillmentGatewayStack({
       productReference: TEST_ADFPAY_PRODUCT_REFERENCE,
       paymentGatewayAdapter: new AdfPayPaymentGatewayAdapter({
         signatureVerifier: new FakeAdfPaySignatureVerifier(),
@@ -57,14 +59,12 @@ describe('Sprint 17 revision — fulfillment data source', () => {
 
     expect(result.fulfillmentExecuted).toBe(true);
     expect(stack.notificationAdapter.getSentNotifications()[0]?.orderReference).toBe('7001');
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
-    expect(
-      await stack.inventoryRepository.countAvailableByProductId(TEST_ADFPAY_PRODUCT_REFERENCE),
-    ).toBe(4);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
+    expect(await getAvailableInventoryQuantity(stack, TEST_ADFPAY_PRODUCT_REFERENCE)).toBe(4);
   });
 
   it('[5][6] missing commerce order rejects payment correlation', async () => {
-    const stack = await createPaymentFulfillmentGatewayStack({
+    const stack = await createTestPaymentFulfillmentGatewayStack({
       productReference: TEST_ADFPAY_PRODUCT_REFERENCE,
       paymentGatewayAdapter: new AdfPayPaymentGatewayAdapter({
         signatureVerifier: new FakeAdfPaySignatureVerifier(),
@@ -138,7 +138,7 @@ describe('Sprint 17 revision — fulfillment data source', () => {
     expect(result.outcome).toBe('partial_processing');
     expect(result.fulfillmentExecuted).toBe(true);
     expect(result.reasonCode).toBe('REPOSITORY_UPDATE_FAILED');
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
   });
 
   it('[11] markFulfilled failure is surfaced safely without re-executing fulfillment', async () => {
@@ -156,18 +156,21 @@ describe('Sprint 17 revision — fulfillment data source', () => {
 
     expect(result.outcome).toBe('partial_processing');
     expect(result.fulfillmentExecuted).toBe(true);
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
 
     const duplicate = await stack.paymentProcessingService.process(
       createAdfPayPaymentIngressInput({ paymentId: 'pay-mark-fail', orderId: '9801' }),
     );
     expect(duplicate.outcome).toBe('duplicate');
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
   });
 
   it('[12] release failure is surfaced safely', async () => {
     const stack = await createScenarioStack();
-    stack.provisioningAdapter.configureException(new Error('SENTINEL_ORCHESTRATION_DO_NOT_LEAK'));
+    stack.fakeProviderAdapter.setMode('throw');
+    stack.fakeProviderAdapter.setConfiguredException(
+      new Error('SENTINEL_ORCHESTRATION_DO_NOT_LEAK'),
+    );
     stack.orderFulfillmentAuthorization.configureReleaseFailure(
       new OrderFulfillmentAuthorizationError(
         'Order fulfillment release failed.',

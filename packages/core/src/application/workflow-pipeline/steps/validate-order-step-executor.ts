@@ -4,13 +4,14 @@ import { FulfillmentRequestValidator } from '../../fulfillment/fulfillment-reque
 import { createDigitalFulfillmentRequest } from '../../../domain/fulfillment/digital-fulfillment-request.js';
 import { FulfillmentValidationError } from '../../../domain/fulfillment/errors/fulfillment-errors.js';
 import { DIGITAL_FULFILLMENT_PIPELINE_STEP_TYPES } from '../../fulfillment/fulfillment-pipeline-step-types.js';
+import type { Clock } from '../../../shared/time/clock.js';
 import { createStepTimestamps, readFulfillmentPipelineInput } from './fulfillment-step-utils.js';
 
 const validator = new FulfillmentRequestValidator();
 
-export const createValidateOrderStepExecutor = (): PipelineStepExecutor => {
+export const createValidateOrderStepExecutor = (clock: Clock): PipelineStepExecutor => {
   return async (context, step) => {
-    const { startedAt, completedAt } = createStepTimestamps();
+    const { startedAt, completedAt } = createStepTimestamps(clock);
     const input = readFulfillmentPipelineInput(context);
 
     try {
@@ -23,7 +24,7 @@ export const createValidateOrderStepExecutor = (): PipelineStepExecutor => {
           customerEmail: input.customerEmail,
           productReference: input.productReference,
           quantity: input.quantity,
-          occurredAt: new Date(String(context.metadata.occurredAt ?? Date.now())),
+          occurredAt: clock.now(),
           metadata: context.metadata,
         }),
       );

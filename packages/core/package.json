@@ -16,6 +16,9 @@
     "lint": "eslint .",
     "format": "prettier --write ."
   },
+  "dependencies": {
+    "@dap/provider-runtime": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

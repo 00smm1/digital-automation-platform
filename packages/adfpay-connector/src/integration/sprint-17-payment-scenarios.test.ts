@@ -11,6 +11,7 @@ import {
   ALL_SENTINELS,
   assertSentinelsAbsent,
   createScenarioStack,
+  getAvailableInventoryQuantity,
   SENTINEL_AUTH_TOKEN,
   SENTINEL_CARD_NUMBER,
   SENTINEL_GATEWAY_SECRET,
@@ -85,7 +86,7 @@ describe('Sprint 17 payment scenarios — normalization and verification', () =>
     expect(result.reasonCode).toBe('VERIFICATION_FAILED');
     expect(stack.paymentRepository.getAllRecords()).toHaveLength(0);
     expect(stack.executionRunRepository.getAllRuns()).toHaveLength(0);
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(0);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(0);
     expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(0);
   });
 
@@ -146,12 +147,14 @@ describe('Sprint 17 payment scenarios — duplicates, conflicts, and fulfillment
       paymentId: 'pay-dup-scenario',
       orderId: '9101',
     });
-    const availableBefore = await stack.inventoryRepository.countAvailableByProductId(
+    const availableBefore = await getAvailableInventoryQuantity(
+      stack,
       TEST_ADFPAY_PRODUCT_REFERENCE,
     );
     const first = await stack.paymentProcessingService.process(input);
     const second = await stack.paymentProcessingService.process(input);
-    const availableAfter = await stack.inventoryRepository.countAvailableByProductId(
+    const availableAfter = await getAvailableInventoryQuantity(
+      stack,
       TEST_ADFPAY_PRODUCT_REFERENCE,
     );
 
@@ -159,7 +162,7 @@ describe('Sprint 17 payment scenarios — duplicates, conflicts, and fulfillment
     expect(second.outcome).toBe('duplicate');
     expect(stack.executionRunRepository.getAllRuns()).toHaveLength(1);
     expect(stack.executionRunRepository.getAllRuns()[0]?.status).toBe('completed');
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
     expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(1);
     expect(availableBefore - availableAfter).toBe(1);
   });
@@ -175,7 +178,7 @@ describe('Sprint 17 payment scenarios — duplicates, conflicts, and fulfillment
 
     expect(conflict.outcome).toBe('rejected');
     expect(conflict.reasonCode).toBe('PAYMENT_CONFLICT');
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
   });
 
   it('[S48] different confirmed payment for same order does not fulfill twice', async () => {
@@ -189,7 +192,7 @@ describe('Sprint 17 payment scenarios — duplicates, conflicts, and fulfillment
 
     expect(second.fulfillmentExecuted).toBe(false);
     expect(second.reasonCode).toBe('ALREADY_CONFIRMED');
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
   });
 
   it('[S49] WooCommerce and payment paths cannot both fulfill the same order', async () => {
@@ -221,7 +224,8 @@ describe('Sprint 17 payment scenarios — duplicates, conflicts, and fulfillment
 
   it('[S70][S71][S72][S73][S74][S75][S76][S77][S78][S79] confirmed payment exercises real pipeline with order context', async () => {
     const stack = await createScenarioStack();
-    const availableBefore = await stack.inventoryRepository.countAvailableByProductId(
+    const availableBefore = await getAvailableInventoryQuantity(
+      stack,
       TEST_ADFPAY_PRODUCT_REFERENCE,
     );
     const result = await stack.paymentProcessingService.process(
@@ -232,14 +236,15 @@ describe('Sprint 17 payment scenarios — duplicates, conflicts, and fulfillment
         quantity: 2,
       }),
     );
-    const availableAfter = await stack.inventoryRepository.countAvailableByProductId(
+    const availableAfter = await getAvailableInventoryQuantity(
+      stack,
       TEST_ADFPAY_PRODUCT_REFERENCE,
     );
 
     expect(result.fulfillmentExecuted).toBe(true);
     expect(stack.executionRunRepository.getAllRuns()).toHaveLength(1);
     expect(stack.executionRunRepository.getAllRuns()[0]?.status).toBe('completed');
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
     expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(1);
     expect(stack.notificationAdapter.getSentNotifications()[0]?.orderReference).toBe('9501');
     expect(availableBefore - availableAfter).toBe(2);
@@ -254,14 +259,17 @@ describe('Sprint 17 payment scenarios — duplicates, conflicts, and fulfillment
 
       expect(result.fulfillmentExecuted).toBe(false);
       expect(stack.executionRunRepository.getAllRuns()).toHaveLength(0);
-      expect(stack.provisioningAdapter.getProvisionCount()).toBe(0);
+      expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(0);
       expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(0);
     }
   });
 
   it('[S84] orchestration exception becomes controlled typed failure', async () => {
     const stack = await createScenarioStack();
-    stack.provisioningAdapter.configureException(new Error('SENTINEL_ORCHESTRATION_DO_NOT_LEAK'));
+    stack.fakeProviderAdapter.setMode('throw');
+    stack.fakeProviderAdapter.setConfiguredException(
+      new Error('SENTINEL_ORCHESTRATION_DO_NOT_LEAK'),
+    );
     const result = await stack.paymentProcessingService.process(
       createAdfPayPaymentIngressInput({ paymentId: 'pay-orchestration-fail', orderId: '9601' }),
     );

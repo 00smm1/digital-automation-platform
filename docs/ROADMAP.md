@@ -2,7 +2,7 @@
 
 Phased delivery plan for the Digital Automation Platform.  
 **Owner:** Osama AL-Sharif  
-**Last updated:** Sprint 17 (WooCommerce inbound adapter and payment confirmation)
+**Last updated:** Sprint 19 (provider runtime and provisioning execution)
 
 ## Overview
 
@@ -61,7 +61,7 @@ Phased delivery plan for the Digital Automation Platform.
 
 ## Phase 2 — Application orchestration
 
-**Status:** In progress (Sprint 17 partial — WooCommerce inbound adapter and payment confirmation)
+**Status:** In progress (Sprint 19 complete — provider runtime; reconciliation deferred)
 
 **Focus:** Compose existing core modules into a coherent application layer with explicit contracts for definitions, matching, orchestration, and durable run lifecycle — still in-memory where possible before persistence lands.
 
@@ -139,6 +139,25 @@ Phased delivery plan for the Digital Automation Platform.
 - `OrderFulfillmentAuthorizationPort` preventing duplicate fulfillment across commerce and payment paths
 - Integer minor-unit `Money` representation; [ADR-016](decisions/ADR-016-payment-confirmation-and-authorization.md)
 
+**Delivered (Sprint 18)**
+
+- Quantity-based inventory pools with explicit total / reserved / consumed / available accounting
+- `InventoryReservation` state machine (`reserved → consumed | released | expired`)
+- Atomic `InventoryReservationRepository.tryReserve` with in-memory per-item serialization
+- `InventoryReservationService`, reservation policy, and typed business results
+- Workflow integration: reserve → provision → consume / release → notify
+- 200+ deterministic reservation and integration tests; [ADR-017](decisions/ADR-017-inventory-reservation-lifecycle.md)
+
+**Delivered (Sprint 19)**
+
+- `@dap/provider-runtime` package — descriptors, registry, selection policy, timeout execution
+- `ProviderRuntimePort` and `ProviderRuntime` single-shot execution (no retry, no failover)
+- Credential resolver port with in-memory implementation; secrets never surface in results
+- Safe execution evidence and retry classification metadata (advisory only)
+- Provisioning workflow step rewired to `ProviderRuntimePort`; reservation cleanup ownership preserved
+- Fake provider adapter with test-only idempotency (not claimed as universal)
+- 100+ provider-runtime and workflow integration tests; [ADR-018](decisions/ADR-018-provider-runtime-and-provisioning-execution.md)
+
 **Remaining planned work**
 
 - HTTP/webhook ingress in `apps/api-server`
@@ -149,9 +168,16 @@ Phased delivery plan for the Digital Automation Platform.
 - Reservation compensation on downstream failure
 - Orchestration-level `(eventId, automationId)` deduplication from ADR-010
 
+**Recommended next sprint — Sprint 20: Provider Reconciliation & Fulfillment Recovery**
+
+- Reconcile ambiguous outcomes (timeout, consumption failure after successful provisioning)
+- Lookup remote provisioning state by attempt reference, business idempotency key, or external reference
+- Operator-safe replay and compensation policies building on `retry-after-reconciliation` classification
+- Partial-processing recovery without blind re-provision or duplicate inventory consumption
+
 **Exit criteria:** A single automated test demonstrates event → matched rule → fulfilled order path entirely in memory, with documented idempotency and run lifecycle contracts ready for Phase 4 persistence.
 
-**Result:** Partially met. Sprints 13–17 prove in-memory event → match → pipeline → fulfillment with gateway idempotency, execution-run audit trails, the first real WooCommerce inbound adapter, and payment authorization. HTTP ingress, production gateway connectivity, and durable persistence remain outstanding.
+**Result:** Partially met. Sprints 13–19 prove in-memory event → match → pipeline → fulfillment with gateway idempotency, execution-run audit trails, WooCommerce and payment authorization, explicit inventory reservation lifecycle, and provider runtime execution. HTTP ingress, production gateway connectivity, provider reconciliation, durable persistence, and distributed concurrency control remain outstanding.
 
 ---
 
@@ -163,14 +189,14 @@ Phased delivery plan for the Digital Automation Platform.
 
 **Planned work**
 
-| Component                   | Location                       |
-| --------------------------- | ------------------------------ |
-| API server event ingestion  | `apps/api-server`              |
-| WooCommerce connector       | `apps/wordpress-plugin`        |
-| AdfPay verification adapter | `packages/provider-sdk`        |
-| IPTV provider adapter       | `packages/provider-sdk`        |
-| Email notification adapter  | `packages/notification-engine` |
-| Staging end-to-end test     | `tests/`                       |
+| Component                   | Location                                          |
+| --------------------------- | ------------------------------------------------- |
+| API server event ingestion  | `apps/api-server`                                 |
+| WooCommerce connector       | `apps/wordpress-plugin`                           |
+| AdfPay verification adapter | `packages/provider-sdk`                           |
+| IPTV provider adapter       | `packages/provider-sdk` → `@dap/provider-runtime` |
+| Email notification adapter  | `packages/notification-engine`                    |
+| Staging end-to-end test     | `tests/`                                          |
 
 - Automation rule: paid order → verify payment → provision subscription → send email
 - Idempotency on order ID with retry and backoff

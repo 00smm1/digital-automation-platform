@@ -1,15 +1,17 @@
 import { InMemoryEventBus } from '../../events/in-memory-event-bus.js';
 import { InMemoryAutomationDefinitionRepository } from '../../../domain/automation-definition/in-memory-automation-definition-repository.js';
-import { InMemoryInventoryRepository } from '../../../domain/inventory/in-memory-inventory-repository.js';
 import { InMemoryWorkflowDefinitionRepository } from '../../../domain/workflow-pipeline/in-memory-workflow-definition-repository.js';
 import { AutomationMatcher } from '../../automation-definition/automation-matcher.js';
 import { PlatformEventOrchestrator } from '../../orchestration/platform-event-orchestrator.js';
 import { PipelineWorkflowExecutionPort } from '../../orchestration/pipeline-workflow-execution-port.js';
 import { PipelineRunner } from '../../workflow-pipeline/pipeline-runner.js';
-import { InventoryService } from '../../inventory/inventory-service.js';
-import { InventoryReservationAdapter } from '../adapters/inventory-reservation-adapter.js';
-import { FakeDigitalProductProvisioningAdapter } from '../adapters/fake-digital-product-provisioning-adapter.js';
+import {
+  createDigitalProviderRuntimeComposition,
+  type ProviderRuntimePort,
+} from '@dap/provider-runtime';
+import type { FakeProviderAdapter } from '@dap/provider-runtime';
 import { InMemoryCustomerNotificationAdapter } from '../adapters/in-memory-customer-notification-adapter.js';
+import { QuantityInventoryReservationAdapter } from '../adapters/quantity-inventory-reservation-adapter.js';
 import { DigitalFulfillmentService } from '../digital-fulfillment-service.js';
 import { createDigitalFulfillmentStepRegistry } from '../../workflow-pipeline/create-digital-fulfillment-step-registry.js';
 import { createDigitalProductFulfillmentWorkflowDefinition } from '../../workflow-pipeline/fixtures/digital-product-fulfillment-workflow.js';
@@ -19,16 +21,24 @@ import { AutomationCondition } from '../../../domain/automation-definition/autom
 import { ConditionGroup } from '../../../domain/automation-definition/condition-group.js';
 import { createIdentifier } from '../../../shared/types/identifier.js';
 import { DIGITAL_PRODUCT_FULFILLMENT_WORKFLOW_REFERENCE } from '../fulfillment-pipeline-step-types.js';
-import type { InventoryItemType } from '../../../domain/inventory/inventory-item-type.js';
+import { FakeClock } from '../../../shared/time/clock.js';
+import { InMemoryInventoryReservationRepository } from '../../../domain/inventory/in-memory-inventory-reservation-repository.js';
+import { InventoryReservationService } from '../../inventory/inventory-reservation-service.js';
+import { createCompositionReservationReferenceFactory } from '../../inventory/reservation-policy.js';
+import { createQuantityInventoryRecord } from '../../../domain/inventory/quantity-inventory-record.js';
+import { createInventoryItemReference } from '../../../domain/inventory/inventory-references.js';
 
 export type DigitalFulfillmentStack = {
+  readonly clock: FakeClock;
   readonly eventBus: InMemoryEventBus;
   readonly automationRepository: InMemoryAutomationDefinitionRepository;
   readonly workflowDefinitionRepository: InMemoryWorkflowDefinitionRepository;
-  readonly inventoryRepository: InMemoryInventoryRepository;
-  readonly inventoryService: InventoryService;
-  readonly inventoryReservationAdapter: InventoryReservationAdapter;
-  readonly provisioningAdapter: FakeDigitalProductProvisioningAdapter;
+  readonly inventoryReservationRepository: InMemoryInventoryReservationRepository;
+  readonly inventoryReservationService: InventoryReservationService;
+  readonly inventoryReservationAdapter: QuantityInventoryReservationAdapter;
+  readonly providerRuntimePort: ProviderRuntimePort;
+  readonly providerRuntimeComposition: ReturnType<typeof createDigitalProviderRuntimeComposition>;
+  readonly fakeProviderAdapter?: FakeProviderAdapter;
   readonly notificationAdapter: InMemoryCustomerNotificationAdapter;
   readonly orchestrator: PlatformEventOrchestrator;
   readonly fulfillmentService: DigitalFulfillmentService;
@@ -38,6 +48,10 @@ export type CreateDigitalFulfillmentStackOptions = {
   readonly productReference?: string;
   readonly automationId?: string;
   readonly inventoryQuantity?: number;
+  readonly clock?: FakeClock;
+  readonly reservationReferenceFactory?: import('../../inventory/reservation-policy.js').ReservationReferenceFactory;
+  readonly providerRuntimePort?: ProviderRuntimePort;
+  readonly fakeProviderAdapter?: FakeProviderAdapter;
 };
 
 export const createDigitalFulfillmentStack = async (
@@ -46,24 +60,37 @@ export const createDigitalFulfillmentStack = async (
   const productReference = options.productReference ?? 'digital-premium-12m';
   const automationId = options.automationId ?? 'digital-premium-fulfillment';
   const inventoryQuantity = options.inventoryQuantity ?? 5;
+  const clock = options.clock ?? new FakeClock();
 
   const eventBus = new InMemoryEventBus();
   const automationRepository = new InMemoryAutomationDefinitionRepository();
   const workflowDefinitionRepository = new InMemoryWorkflowDefinitionRepository();
-  const inventoryRepository = new InMemoryInventoryRepository();
-  const inventoryService = new InventoryService({ repository: inventoryRepository, eventBus });
-  const inventoryReservationAdapter = new InventoryReservationAdapter(inventoryService);
-  const provisioningAdapter = new FakeDigitalProductProvisioningAdapter();
+  const inventoryReservationRepository = new InMemoryInventoryReservationRepository();
+  const inventoryReservationService = new InventoryReservationService({
+    repository: inventoryReservationRepository,
+    clock,
+    reservationReferenceFactory:
+      options.reservationReferenceFactory ?? createCompositionReservationReferenceFactory(),
+  });
+  const inventoryReservationAdapter = new QuantityInventoryReservationAdapter(
+    inventoryReservationService,
+  );
+  const providerRuntimeComposition = createDigitalProviderRuntimeComposition({ clock });
+  const providerRuntimePort =
+    options.providerRuntimePort ?? providerRuntimeComposition.providerRuntime;
   const notificationAdapter = new InMemoryCustomerNotificationAdapter();
 
-  for (let index = 0; index < inventoryQuantity; index += 1) {
-    await inventoryService.addItem({
-      id: createIdentifier('InventoryItem', `${productReference}-item-${index}`),
-      productId: productReference,
-      type: 'license' as InventoryItemType,
-      payload: { code: `CODE-${index}` },
-    });
+  const inventoryItemReference = createInventoryItemReference(productReference);
+  const inventoryRecordResult = createQuantityInventoryRecord({
+    inventoryItemReference,
+    totalQuantity: inventoryQuantity,
+  });
+
+  if (!inventoryRecordResult.ok) {
+    throw new Error('Failed to seed inventory record.');
   }
+
+  await inventoryReservationRepository.saveInventoryItem(inventoryRecordResult.value);
 
   await workflowDefinitionRepository.save(createDigitalProductFulfillmentWorkflowDefinition());
 
@@ -89,11 +116,13 @@ export const createDigitalFulfillmentStack = async (
 
   const stepRegistry = createDigitalFulfillmentStepRegistry({
     inventoryReservationPort: inventoryReservationAdapter,
-    provisioningPort: provisioningAdapter,
+    reservationLifecyclePort: inventoryReservationAdapter,
+    providerRuntimePort,
     notificationPort: notificationAdapter,
+    clock,
   });
 
-  const pipelineRunner = new PipelineRunner({ stepExecutorRegistry: stepRegistry });
+  const pipelineRunner = new PipelineRunner({ stepExecutorRegistry: stepRegistry, clock });
   const workflowExecutionPort = new PipelineWorkflowExecutionPort({
     pipelineRunner,
     workflowDefinitionRepository,
@@ -106,13 +135,16 @@ export const createDigitalFulfillmentStack = async (
   const fulfillmentService = new DigitalFulfillmentService({ orchestrator });
 
   return {
+    clock,
     eventBus,
     automationRepository,
     workflowDefinitionRepository,
-    inventoryRepository,
-    inventoryService,
+    inventoryReservationRepository,
+    inventoryReservationService,
     inventoryReservationAdapter,
-    provisioningAdapter,
+    providerRuntimePort,
+    providerRuntimeComposition,
+    fakeProviderAdapter: options.fakeProviderAdapter,
     notificationAdapter,
     orchestrator,
     fulfillmentService,

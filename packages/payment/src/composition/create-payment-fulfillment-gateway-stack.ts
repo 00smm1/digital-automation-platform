@@ -114,8 +114,10 @@ export const createPaymentFulfillmentGatewayStack = async (
   const pipelineRunner = new PipelineRunner({
     stepExecutorRegistry: createDigitalFulfillmentStepRegistry({
       inventoryReservationPort: fulfillmentStack.inventoryReservationAdapter,
-      provisioningPort: fulfillmentStack.provisioningAdapter,
+      reservationLifecyclePort: fulfillmentStack.inventoryReservationAdapter,
+      providerRuntimePort: fulfillmentStack.providerRuntimePort,
       notificationPort: fulfillmentStack.notificationAdapter,
+      clock,
     }),
     progressObserver: executionRunCoordinator,
     clock,

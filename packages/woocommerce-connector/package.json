@@ -21,6 +21,7 @@
     "@dap/core": "workspace:*"
   },
   "devDependencies": {
+    "@dap/provider-runtime": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

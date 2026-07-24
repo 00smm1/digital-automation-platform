@@ -25,6 +25,7 @@ export class FakeDigitalProductProvisioningAdapter implements DigitalProductProv
   private configuredError?: DigitalProductProvisioningError;
   private configuredException?: Error;
   private provisionCount = 0;
+  private lastRequest?: DigitalProductProvisioningRequest;
 
   constructor(options: FakeDigitalProductProvisioningAdapterOptions = {}) {
     this.providerReferencePrefix = options.providerReferencePrefix ?? 'provision';
@@ -48,8 +49,12 @@ export class FakeDigitalProductProvisioningAdapter implements DigitalProductProv
     this.provisionCount = 0;
   }
 
-  getProvisionCount(): number {
+  getInvocationCount(): number {
     return this.provisionCount;
+  }
+
+  getLastRequest(): DigitalProductProvisioningRequest | undefined {
+    return this.lastRequest;
   }
 
   async provision(
@@ -69,6 +74,7 @@ export class FakeDigitalProductProvisioningAdapter implements DigitalProductProv
     }
 
     this.provisionCount += 1;
+    this.lastRequest = request;
     const sequence = this.provisionCount;
     const secret = `secret-${request.orderReference}-${sequence}`;
 

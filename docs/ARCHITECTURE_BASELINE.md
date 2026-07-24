@@ -1,8 +1,8 @@
 # Architecture Baseline
 
-Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 17**.  
+Architecture snapshot of the Digital Automation Platform **as implemented after Sprint 19**.  
 **Owner:** Osama AL-Sharif  
-**Status:** Current baseline (Sprint 17)
+**Status:** Current baseline (Sprint 19)
 
 This document describes what exists in the repository today. For target-state design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -12,7 +12,7 @@ This document describes what exists in the repository today. For target-state de
 
 The platform automates digital commerce fulfillment — reserving inventory, invoking providers, running automation pipelines, and processing orders — independently of any single storefront or vendor SDK.
 
-After Sprint 17, implemented business logic resides primarily in `@dap/core` and `@dap/payment` as provider-independent, in-memory TypeScript. The digital fulfillment vertical slice is proven through `DigitalFulfillmentService`, the inbound gateway, execution-run lifecycle, and payment confirmation with authorization gating. Inbound integration is modeled through `InboundEventGateway` with adapter ports and in-memory idempotency. Execution-run lifecycle and safe audit records are tracked through `ExecutionRunCoordinator` without persistence infrastructure. The first real commerce connector (`@dap/woocommerce-connector`) maps WooCommerce order webhooks into provider-neutral envelopes and normalized events. `@dap/adfpay-connector` maps AdfPay-shaped events into provider-neutral payment confirmations. Apps and engine packages are structural placeholders awaiting Phase 3 integrations. Production HTTP ingress, official AdfPay verification, and persistence remain deferred.
+After Sprint 19, implemented business logic resides primarily in `@dap/core`, `@dap/payment`, and `@dap/provider-runtime` as provider-independent, in-memory TypeScript. The digital fulfillment vertical slice is proven through `DigitalFulfillmentService`, the inbound gateway, execution-run lifecycle, payment confirmation with authorization gating, an explicit **inventory reservation lifecycle** (reserve → provision → consume / release), and a **provider runtime** layer between the provisioning workflow step and vendor adapters. Inbound integration is modeled through `InboundEventGateway` with adapter ports and in-memory idempotency. Execution-run lifecycle and safe audit records are tracked through `ExecutionRunCoordinator` without persistence infrastructure. The first real commerce connector (`@dap/woocommerce-connector`) maps WooCommerce order webhooks into provider-neutral envelopes and normalized events. `@dap/adfpay-connector` maps AdfPay-shaped events into provider-neutral payment confirmations. Apps and engine packages are structural placeholders awaiting Phase 3 integrations. Production HTTP ingress, official AdfPay verification, durable inventory persistence, real vendor provisioning adapters, provider reconciliation, distributed concurrency control, and expiration workers remain deferred.
 
 ---
 
@@ -148,6 +148,72 @@ Strategy C (ADR-016): WooCommerce paid events and confirmed external payments ma
 
 ---
 
+## Inventory reservation lifecycle (Sprint 18)
+
+```mermaid
+flowchart TB
+    AUTH[Trusted Order or Payment Authorization] --> RUN[Execution Run]
+    RUN --> IRS[Inventory Reservation Service]
+    IRS --> ARR[Atomic Reservation Repository]
+    ARR --> RES[Reserved]
+    RES --> PROV[Provisioning]
+    PROV -->|Failed| REL[Release]
+    PROV -->|Succeeded| CON[Consume]
+    CON --> NOTIF[Notification]
+```
+
+`InventoryReservationService` owns provider-neutral reservation policy. `ExecutionRunReference` is the reservation owner. Workflow pipeline: validate → reserve → provision → consume → notify.
+
+**Not complete (deferred):**
+
+- durable SQL persistence for inventory pools and reservations
+- distributed concurrency control / compare-and-set
+- real scheduler and expiration worker
+- automated reconciliation after partial-processing
+- compensation engine
+- physical warehouse / multi-location inventory
+- production monitoring
+
+---
+
+## Provider runtime and provisioning execution (Sprint 19)
+
+```mermaid
+flowchart TB
+    RES[Reserved Inventory] --> PROV_STEP[Provision Digital Product Step]
+    PROV_STEP --> RT[ProviderRuntimePort]
+    RT --> SEL[Selection Policy]
+    SEL --> REG[Provider Registry]
+    REG --> ADAPT[Provider Adapter]
+    ADAPT --> CRED[Credential Resolver]
+    RT --> TIMEOUT[Timeout Executor]
+    RT --> EVID[Safe Execution Evidence]
+    ADAPT --> EXT[External Provisioning Reference]
+    EXT --> CON[Consume Reservation]
+    CON --> NOTIF[Notification]
+```
+
+`@dap/provider-runtime` owns descriptor-based registry, deterministic single-provider selection, timeout-wrapped execution, and safe result projection. The workflow provisioning step calls `ProviderRuntimePort.executeProvisioning()` — not vendor adapters or registry internals directly.
+
+**Key semantics (Sprint 19):**
+
+- One selection, one adapter invocation per call — no retry, no failover
+- Timeout does **not** prove remote non-execution — classify as `retry-after-reconciliation`
+- Health on descriptors is **configured**, not live-monitored
+- Registry and credentials are **in-memory only**
+- Fake adapter idempotency in tests is **not universal** for production adapters
+- Provisioning failure still triggers reservation release in the workflow step (Sprint 18 policy)
+
+**Not complete (deferred):**
+
+- durable provider registry and credential vault
+- live health monitoring
+- provider reconciliation and fulfillment recovery (Sprint 20 recommendation)
+- real IPTV / vendor HTTP adapters
+- automatic retry or failover policies
+
+---
+
 ## Digital fulfillment vertical slice (Sprint 13)
 
 ```mermaid
@@ -160,12 +226,14 @@ flowchart TB
     R --> S1[validate-order]
     R --> S2[reserve-inventory]
     R --> S3[provision-digital-product]
+    R --> S3B[consume-reservation]
     R --> S4[notify-customer]
     S2 --> IP[Inventory Reservation Port]
-    S3 --> PP[Digital Product Provisioning Port]
+    S3 --> PR[ProviderRuntimePort]
+    S3B --> IP
     S4 --> NP[Customer Notification Port]
     IP --> A1[Inventory Adapter]
-    PP --> A2[Fake Provisioning Adapter]
+    PR --> A2[Provider Adapter]
     NP --> A3[In-Memory Notification Adapter]
     O --> FR[Digital Fulfillment Result]
 ```
@@ -258,6 +326,7 @@ Application services receive dependencies via constructor injection (repositorie
 | Package                      | Owns today                                                                     | Does not own                                    |
 | ---------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------- |
 | `@dap/core`                  | All domain models, application services, in-memory implementations, unit tests | HTTP, persistence, vendor SDKs                  |
+| `@dap/provider-runtime`      | Provider registry, selection, timeout execution, safe evidence                 | Inventory, payment, notification, workflow      |
 | `@dap/woocommerce-connector` | WooCommerce envelope, signature verification, inbound adapter                  | Authorization policy, fulfillment orchestration |
 | `@dap/payment`               | Provider-neutral payment confirmation, authorization, correlation, repository  | Gateway parsing, HTTP, persistence              |
 | `@dap/adfpay-connector`      | AdfPay adapter, parser, fake signature verifier                                | Authorization policy, fulfillment orchestration |

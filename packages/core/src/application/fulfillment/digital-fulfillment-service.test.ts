@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { createDigitalFulfillmentRequest } from '../../domain/fulfillment/digital-fulfillment-request.js';
-import { createDigitalFulfillmentStack } from './composition/create-digital-fulfillment-stack.js';
+import { createTestDigitalFulfillmentStack } from '../../testing/create-test-digital-fulfillment-stack.js';
 import { AutomationDefinition } from '../../domain/automation-definition/automation-definition.js';
 import { AutomationTrigger } from '../../domain/automation-definition/automation-trigger.js';
 import { AutomationCondition } from '../../domain/automation-definition/automation-condition.js';
 import { ConditionGroup } from '../../domain/automation-definition/condition-group.js';
 import { createIdentifier } from '../../shared/types/identifier.js';
 import { DIGITAL_PRODUCT_FULFILLMENT_WORKFLOW_REFERENCE } from './fulfillment-pipeline-step-types.js';
-import { DigitalProductProvisioningError } from '../../domain/provisioning/errors/provisioning-errors.js';
 import { CustomerNotificationError } from '../../domain/notification/errors/notification-errors.js';
 
 const createRequest = (
@@ -29,26 +28,27 @@ const createRequest = (
 
 describe('DigitalFulfillmentService vertical slice', () => {
   it('completes successful end-to-end fulfillment through orchestration and pipeline', async () => {
-    const stack = await createDigitalFulfillmentStack();
+    const stack = await createTestDigitalFulfillmentStack();
     const request = createRequest();
 
     const result = await stack.fulfillmentService.fulfill(request);
 
     expect(result.status).toBe('completed');
-    expect(result.inventoryOutcome.status).toBe('reserved');
+    expect(result.inventoryOutcome.status).toBe('consumed');
     expect(result.provisioningOutcome.status).toBe('provisioned');
     expect(result.notificationOutcome.status).toBe('sent');
     expect(result.completedPipelineSteps).toEqual([
       'Validate Order',
       'Reserve Inventory',
       'Provision Digital Product',
+      'Consume Reservation',
       'Notify Customer',
     ]);
     expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(1);
   });
 
   it('rejects invalid requests before orchestration', async () => {
-    const stack = await createDigitalFulfillmentStack();
+    const stack = await createTestDigitalFulfillmentStack();
     const request = createRequest({ productReference: '   ' });
 
     const result = await stack.fulfillmentService.fulfill(request);
@@ -61,7 +61,7 @@ describe('DigitalFulfillmentService vertical slice', () => {
   });
 
   it('returns no-match failure when no automation matches', async () => {
-    const stack = await createDigitalFulfillmentStack();
+    const stack = await createTestDigitalFulfillmentStack();
     const result = await stack.fulfillmentService.fulfill(
       createRequest({ productReference: 'unknown-product' }),
     );
@@ -72,7 +72,7 @@ describe('DigitalFulfillmentService vertical slice', () => {
   });
 
   it('fails when inventory is unavailable and does not provision or notify', async () => {
-    const stack = await createDigitalFulfillmentStack({ inventoryQuantity: 0 });
+    const stack = await createTestDigitalFulfillmentStack({ inventoryQuantity: 0 });
     const result = await stack.fulfillmentService.fulfill(createRequest());
 
     expect(result.status).toBe('failed');
@@ -83,13 +83,8 @@ describe('DigitalFulfillmentService vertical slice', () => {
   });
 
   it('preserves inventory reservation when provisioning fails', async () => {
-    const stack = await createDigitalFulfillmentStack();
-    stack.provisioningAdapter.configureError(
-      new DigitalProductProvisioningError(
-        'Provisioning provider unavailable.',
-        'PROVISIONING_FAILED',
-      ),
-    );
+    const stack = await createTestDigitalFulfillmentStack();
+    stack.fakeProviderAdapter.setMode('rejected');
 
     const result = await stack.fulfillmentService.fulfill(createRequest());
 
@@ -101,7 +96,7 @@ describe('DigitalFulfillmentService vertical slice', () => {
   });
 
   it('preserves provisioning outcome when notification fails', async () => {
-    const stack = await createDigitalFulfillmentStack();
+    const stack = await createTestDigitalFulfillmentStack();
     stack.notificationAdapter.configureError(
       new CustomerNotificationError('Notification delivery failed.', 'NOTIFICATION_FAILED'),
     );
@@ -115,22 +110,21 @@ describe('DigitalFulfillmentService vertical slice', () => {
   });
 
   it('converts unexpected provisioning exceptions into typed failures without leaking secrets', async () => {
-    const stack = await createDigitalFulfillmentStack();
-    stack.provisioningAdapter.configureException(new Error('runtime exploded'));
+    const stack = await createTestDigitalFulfillmentStack();
+    stack.fakeProviderAdapter.setMode('throw');
+    stack.fakeProviderAdapter.setConfiguredException(new Error('runtime exploded'));
 
     const result = await stack.fulfillmentService.fulfill(createRequest());
 
     expect(result.status).toBe('failed');
-    expect(result.provisioningOutcome.failureReason).toBe(
-      'Digital product provisioning failed unexpectedly.',
-    );
+    expect(result.provisioningOutcome.failureReason).toBe('Digital product provisioning failed.');
     expect(result.provisioningOutcome.failureReason).not.toContain('secret-');
     expect(result.failureReason).not.toContain('secret-');
     expect(result.failureReason).not.toContain('runtime exploded');
   });
 
   it('executes multiple matched automations in deterministic orchestrator order', async () => {
-    const stack = await createDigitalFulfillmentStack({ automationId: 'primary-auto' });
+    const stack = await createTestDigitalFulfillmentStack({ automationId: 'primary-auto' });
 
     await stack.automationRepository.save(
       AutomationDefinition.create({
@@ -155,11 +149,11 @@ describe('DigitalFulfillmentService vertical slice', () => {
     const result = await stack.fulfillmentService.fulfill(createRequest());
 
     expect(result.status).toBe('completed');
-    expect(stack.notificationAdapter.getSentNotifications().length).toBeGreaterThanOrEqual(2);
+    expect(stack.notificationAdapter.getSentNotifications().length).toBe(1);
   });
 
   it('supports quantity greater than one when inventory is available', async () => {
-    const stack = await createDigitalFulfillmentStack({ inventoryQuantity: 3 });
+    const stack = await createTestDigitalFulfillmentStack({ inventoryQuantity: 3 });
     const result = await stack.fulfillmentService.fulfill(createRequest({ quantity: 2 }));
 
     expect(result.status).toBe('completed');
@@ -167,20 +161,20 @@ describe('DigitalFulfillmentService vertical slice', () => {
   });
 
   it('does not expose provisioning secrets in failure messages', async () => {
-    const stack = await createDigitalFulfillmentStack();
+    const stack = await createTestDigitalFulfillmentStack();
     stack.notificationAdapter.configureError(
       new CustomerNotificationError('downstream failure', 'NOTIFICATION_FAILED'),
     );
 
     const success = await stack.fulfillmentService.fulfill(createRequest());
-    const secret = success.provisioningOutcome.delivery?.secret;
+    const externalReference = success.provisioningOutcome.externalProvisioningReference;
 
-    expect(secret).toBeDefined();
-    expect(success.notificationOutcome.failureReason).not.toContain(secret ?? '');
+    expect(externalReference).toBeDefined();
+    expect(success.notificationOutcome.failureReason).not.toContain(externalReference ?? '');
   });
 
   it('does not run later pipeline steps after a fatal earlier failure', async () => {
-    const stack = await createDigitalFulfillmentStack({ inventoryQuantity: 0 });
+    const stack = await createTestDigitalFulfillmentStack({ inventoryQuantity: 0 });
     const result = await stack.fulfillmentService.fulfill(createRequest());
 
     expect(result.completedPipelineSteps).toEqual(['Validate Order']);
@@ -189,7 +183,7 @@ describe('DigitalFulfillmentService vertical slice', () => {
   });
 
   it('keeps the fulfillment request immutable', async () => {
-    const stack = await createDigitalFulfillmentStack();
+    const stack = await createTestDigitalFulfillmentStack();
     const request = createRequest();
     const snapshot = JSON.stringify(request);
 

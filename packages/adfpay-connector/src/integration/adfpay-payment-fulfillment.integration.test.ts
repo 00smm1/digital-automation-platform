@@ -22,7 +22,7 @@ describe('AdfPay payment fulfillment integration', () => {
     expect(result.outcome).toBe('processed');
     expect(result.fulfillmentExecuted).toBe(true);
     expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(1);
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
   });
 
   it('does not fulfill non-confirmed statuses', async () => {

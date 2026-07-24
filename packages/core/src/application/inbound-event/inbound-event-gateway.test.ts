@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { PlatformEventOrchestrator } from '../orchestration/platform-event-orchestrator.js';
 import { InboundEventGateway } from './inbound-event-gateway.js';
 import {
-  createInboundGatewayStack,
+  createTestInboundGatewayStack,
   type InboundGatewayStack,
-} from './composition/create-inbound-gateway-stack.js';
+} from '../../testing/create-test-inbound-gateway-stack.js';
 import {
   createValidExternalOrderPaidEnvelope,
   FakeInboundEventAdapter,
@@ -35,7 +35,7 @@ const processEnvelope = async (
 
 describe('InboundEventGateway end-to-end', () => {
   it('normalizes and processes a valid external event through orchestration and pipeline', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await processEnvelope(stack);
 
     expect(result.status).toBe('processed');
@@ -43,11 +43,11 @@ describe('InboundEventGateway end-to-end', () => {
     expect(result.orchestrationResult?.overallStatus).toBe('succeeded');
     expect(result.orchestrationResult?.successfulExecutionCount).toBe(1);
     expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(1);
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
   });
 
   it('rejects malformed external events without claiming idempotency', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await stack.inboundGateway.process(
       createValidExternalOrderPaidEnvelope({
         payload: {
@@ -68,7 +68,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('rejects unsupported external event types without claiming idempotency', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await stack.inboundGateway.process(
       createValidExternalOrderPaidEnvelope({ eventType: 'order.cancelled' }),
       stack.inboundAdapter,
@@ -80,7 +80,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('does not process duplicate events twice', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const envelope = createValidExternalOrderPaidEnvelope();
 
     const first = await stack.inboundGateway.process(envelope, stack.inboundAdapter);
@@ -89,11 +89,11 @@ describe('InboundEventGateway end-to-end', () => {
     expect(first.status).toBe('processed');
     expect(second.status).toBe('duplicate');
     expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(1);
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
   });
 
   it('returns completed duplicate information for already completed events', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const envelope = createValidExternalOrderPaidEnvelope();
 
     await stack.inboundGateway.process(envelope, stack.inboundAdapter);
@@ -105,7 +105,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('returns failed duplicate state without automatic retry', async () => {
-    const stack = await createInboundGatewayStack({ inventoryQuantity: 0 });
+    const stack = await createTestInboundGatewayStack({ inventoryQuantity: 0 });
     const envelope = createValidExternalOrderPaidEnvelope();
 
     const failed = await stack.inboundGateway.process(envelope, stack.inboundAdapter);
@@ -120,7 +120,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('allows only one successful claim for concurrent submissions of the same key', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const envelope = createValidExternalOrderPaidEnvelope();
 
     const [first, second] = await Promise.all([
@@ -134,7 +134,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('treats the same external event id from different sources separately', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const sharedExternalId = 'shared-ext-id';
 
     const first = await processEnvelope(stack, {
@@ -152,7 +152,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('processes different external event ids from the same source separately', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
 
     const first = await processEnvelope(stack, { externalEventId: 'evt-a' });
     const second = await processEnvelope(stack, { externalEventId: 'evt-b' });
@@ -163,7 +163,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('does not create an idempotency record when normalization fails', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     stack.inboundAdapter.configureError(
       new InboundEventNormalizationError('Configured normalization failure.', 'CONFIGURED_FAILURE'),
     );
@@ -175,7 +175,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('prevents orchestration when idempotency claim fails at the store', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     stack.idempotencyStore.configureClaimFailure(
       new IdempotencyStoreError('Configured idempotency store failure.', 'CLAIM_STORE_FAILURE'),
     );
@@ -189,7 +189,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('marks idempotency as failed when orchestration fails', async () => {
-    const stack = await createInboundGatewayStack({ inventoryQuantity: 0 });
+    const stack = await createTestInboundGatewayStack({ inventoryQuantity: 0 });
     const result = await processEnvelope(stack);
 
     expect(result.status).toBe('failed');
@@ -201,7 +201,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('converts unexpected adapter exceptions into typed normalization failures', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     stack.inboundAdapter.configureException(new Error('adapter runtime exploded'));
 
     const result = await processEnvelope(stack);
@@ -212,7 +212,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('converts unexpected orchestrator exceptions into typed processing failures', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const gateway = new InboundEventGateway({
       idempotencyStore: stack.idempotencyStore,
       orchestrator: createThrowingOrchestrator(),
@@ -230,7 +230,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('does not include sensitive payload values in failure messages', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const secretToken = 'super-secret-auth-token-12345';
 
     const result = await stack.inboundGateway.process(
@@ -252,7 +252,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('preserves external event envelope immutability during processing', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const envelope = createValidExternalOrderPaidEnvelope();
     const snapshot = JSON.stringify(envelope);
 
@@ -262,7 +262,7 @@ describe('InboundEventGateway end-to-end', () => {
   });
 
   it('uses the real orchestrator and workflow pipeline rather than bypassing them', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const result = await processEnvelope(stack);
 
     expect(result.orchestrationResult?.executionOutcomes).toHaveLength(1);
@@ -272,20 +272,21 @@ describe('InboundEventGateway end-to-end', () => {
       'Validate Order',
       'Reserve Inventory',
       'Provision Digital Product',
+      'Consume Reservation',
       'Notify Customer',
     ]);
     expect(stack.orchestrator).toBeInstanceOf(PlatformEventOrchestrator);
   });
 
   it('executes inventory, provisioning, and notification only once for duplicate submissions', async () => {
-    const stack = await createInboundGatewayStack();
+    const stack = await createTestInboundGatewayStack();
     const envelope = createValidExternalOrderPaidEnvelope();
 
     await stack.inboundGateway.process(envelope, stack.inboundAdapter);
     await stack.inboundGateway.process(envelope, stack.inboundAdapter);
 
     expect(stack.notificationAdapter.getSentNotifications()).toHaveLength(1);
-    expect(stack.provisioningAdapter.getProvisionCount()).toBe(1);
+    expect(stack.fakeProviderAdapter.getInvocationCount()).toBe(1);
   });
 });
 

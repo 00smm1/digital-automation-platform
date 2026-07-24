@@ -6,7 +6,6 @@ import type {
   NotificationFulfillmentOutcome,
   ProvisioningFulfillmentOutcome,
 } from '../../domain/fulfillment/fulfillment-outcomes.js';
-import type { ProvisioningDelivery } from '../../domain/fulfillment/provisioning-delivery.js';
 import type { PlatformEventOrchestrationResult } from '../../domain/orchestration/platform-event-orchestration-result.js';
 import type { PipelineExecutionResult } from '../../domain/workflow-pipeline/pipeline-execution-result.js';
 import type { PipelineStepExecutionResult } from '../../domain/workflow-pipeline/pipeline-step-execution-result.js';
@@ -53,14 +52,41 @@ const mapInventoryOutcome = (
   const inventoryItemIds = Array.isArray(step.output?.inventoryItemIds)
     ? (step.output.inventoryItemIds as string[])
     : [];
+  const consumeStep = findStep(
+    pipelineResult,
+    DIGITAL_FULFILLMENT_PIPELINE_STEP_TYPES.CONSUME_RESERVATION,
+  );
+  const consumed = consumeStep?.status === 'succeeded';
 
   return {
-    status: 'reserved',
+    status: consumed ? 'consumed' : 'reserved',
+    reservationReference:
+      typeof step.output?.reservationReference === 'string'
+        ? step.output.reservationReference
+        : undefined,
+    inventoryItemReference:
+      typeof step.output?.inventoryItemReference === 'string'
+        ? step.output.inventoryItemReference
+        : undefined,
     inventoryItemId: inventoryItemIds[0],
     productReference:
-      typeof step.output?.productReference === 'string' ? step.output.productReference : undefined,
+      typeof step.output?.inventoryItemReference === 'string'
+        ? step.output.inventoryItemReference
+        : typeof step.output?.productReference === 'string'
+          ? step.output.productReference
+          : undefined,
     reservedQuantity:
-      typeof step.output?.reservedQuantity === 'number' ? step.output.reservedQuantity : undefined,
+      typeof step.output?.quantity === 'number'
+        ? step.output.quantity
+        : typeof step.output?.reservedQuantity === 'number'
+          ? step.output.reservedQuantity
+          : undefined,
+    reservationStatus:
+      typeof consumeStep?.output?.status === 'string'
+        ? consumeStep.output.status
+        : typeof step.output?.status === 'string'
+          ? step.output.status
+          : undefined,
   };
 };
 
@@ -91,7 +117,18 @@ const mapProvisioningOutcome = (
       typeof step.output?.providerReference === 'string'
         ? step.output.providerReference
         : undefined,
-    delivery: step.output?.delivery as ProvisioningDelivery | undefined,
+    executionAttemptReference:
+      typeof step.output?.executionAttemptReference === 'string'
+        ? step.output.executionAttemptReference
+        : undefined,
+    externalProvisioningReference:
+      typeof step.output?.externalProvisioningReference === 'string'
+        ? step.output.externalProvisioningReference
+        : undefined,
+    deliveryMaterialReference:
+      typeof step.output?.deliveryMaterialReference === 'string'
+        ? step.output.deliveryMaterialReference
+        : undefined,
   };
 };
 
